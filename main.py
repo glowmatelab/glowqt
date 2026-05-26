@@ -3,15 +3,18 @@ import json
 import os
 import random
 import re
+import sys
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.enums import ChatMembersFilter, ParseMode
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, NetworkMigrate, PhoneMigrate, ConnectionError as PyroConnectionError
 from datetime import datetime
 from flask import Flask
 from threading import Thread
 
+# ============================================================
 # --- FLASK (Render alive rakhne ke liye) ---
+# ============================================================
 flask_app = Flask(__name__)
 
 @flask_app.route('/')
@@ -19,66 +22,94 @@ def home():
     return "QTTAGbot is alive! 🎀"
 
 def run_flask():
-    flask_app.run(host='0.0.0.0', port=8080)
+    try:
+        flask_app.run(host='0.0.0.0', port=8080)
+    except Exception as e:
+        print(f"[Flask Error]: {e}")
 
 Thread(target=run_flask, daemon=True).start()
 
+# ============================================================
 # --- CONFIG (Environment Variables) ---
-API_ID = int(os.environ.get("API_ID"))
+# ============================================================
+API_ID   = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = int(os.environ.get("OWNER_ID"))
+OWNER_ID  = int(os.environ.get("OWNER_ID"))
 
-app = Client("QTTAGbot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# ✅ FIX 1: sleep_threshold aur max_concurrent_transmissions add kiya
+#    sleep_threshold=60  → FloodWait < 60s pe auto-sleep, crash nahi
+#    max_concurrent_transmissions=2 → ek saath zyada messages nahi jaayenge
+app = Client(
+    "QTTAGbot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN,
+    sleep_threshold=60,
+    max_concurrent_transmissions=2,
+)
 
+# ============================================================
 # --- UNIFIED ACTIVE CHATS ---
-active_chats = {}   # chat_id -> tag type string
+# ============================================================
+active_chats = {}  # chat_id -> tag type string
 
 # ============================================================
 # --- DATABASE LOGIC ---
 # ============================================================
-DB_FILE = "qttag_data.json"
+DB_FILE   = "qttag_data.json"
+data_lock = asyncio.Lock()   # ✅ FIX 2: Race condition prevent karta hai
+
+def _default_data():
+    return {
+        "groups": [],
+        "users": [],
+        "custom_messages": {},
+        "settings": {},
+        "afk_users": {},
+        "daily_couples": {}
+    }
 
 def load_data():
     if not os.path.exists(DB_FILE):
-        return {
-            "groups": [],
-            "users": [],
-            "custom_messages": {},
-            "settings": {},
-            "afk_users": {},
-            "daily_couples": {}
-        }
+        return _default_data()
     try:
         with open(DB_FILE, "r") as f:
             data = json.load(f)
-            for key in ["groups", "users", "custom_messages", "settings", "afk_users", "daily_couples"]:
-                if key not in data:
-                    data[key] = [] if key in ["groups", "users"] else {}
-            return data
-    except:
-        return {
-            "groups": [],
-            "users": [],
-            "custom_messages": {},
-            "settings": {},
-            "afk_users": {},
-            "daily_couples": {}
-        }
+        for key, default in _default_data().items():
+            if key not in data:
+                data[key] = default
+        return data
+    except Exception as e:
+        print(f"[DB load error]: {e}")
+        return _default_data()
 
 def save_data(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"[DB save error]: {e}")
+
+async def load_data_safe():
+    """Async-safe data load with lock"""
+    async with data_lock:
+        return load_data()
+
+async def save_data_safe(data):
+    """Async-safe data save with lock"""
+    async with data_lock:
+        save_data(data)
 
 # ============================================================
 # --- CHATBOT RESPONSES ---
 # ============================================================
 exact_responses = {
     "hello": ["Hii babe! 💕 Kya haal?", "Helloooo! 🌸", "Hey sweetie! 💫"],
-    "hi": ["Yoooo! 🎀 Wassup?", "Hii there! ✨", "Hiiii babyyy! 💌"],
-    "hey": ["Heyyy! 💕 Kaisa hai?", "Hey gorgeous! 🌸", "Yooo! ✨"],
-    "qt": ["Haan! 🎀 Main sun rahi hoon! 💕 Bol na!", "Hanji! ✨ Kya batt hai?", "Haan babe! 💫"],
-    "bye": ["Bye bye! 👋💕 Jaldi aio!", "Take care! 🌸✨", "See you soon! 💫🎀"],
+    "hi":    ["Yoooo! 🎀 Wassup?", "Hii there! ✨", "Hiiii babyyy! 💌"],
+    "hey":   ["Heyyy! 💕 Kaisa hai?", "Hey gorgeous! 🌸", "Yooo! ✨"],
+    "qt":    ["Haan! 🎀 Main sun rahi hoon! 💕 Bol na!", "Hanji! ✨ Kya batt hai?", "Haan babe! 💫"],
+    "bye":   ["Bye bye! 👋💕 Jaldi aio!", "Take care! 🌸✨", "See you soon! 💫🎀"],
 }
 
 # ============================================================
@@ -100,7 +131,7 @@ GM_MESSAGES = [
     "🎵 <b>Pᴀᴋsʜɪʏᴏɴ Kᴀ Gᴀᴀɴᴀ Sᴜɴᴋᴇ Uᴛʜᴏ</b>\n\n{mention}",
     "🌤️ <b>Dʜᴜᴀɴ Kᴀ Gɪʟᴀᴀs Aᴜʀ Tᴜᴍʜᴀʀɪ Hᴀɴsɪ</b>\n\n{mention}",
     "🌟 <b>Cʜᴀᴀɴᴅ Sɪᴛᴀʀᴇ Bᴏʟᴇ - Gᴏᴏᴅ Mᴏʀɴɪɴɢ</b>\n\n{mention}",
-    "💐 <b>Hᴀʀ Kᴀᴀᴍ Mᴇɪɴ Kᴀᴀᴍʏᴀʙɪ Mɪʟᴇ</b>\n\n{mention}"
+    "💐 <b>Hᴀʀ Kᴀᴀᴍ Mᴇɪɴ Kᴀᴀᴍʏᴀʙɪ Mɪʟᴇ</b>\n\n{mention}",
 ]
 
 GA_MESSAGES = [
@@ -119,7 +150,7 @@ GA_MESSAGES = [
     "🍉 <b>Tᴀʀʙᴜᴊ Kʜᴀᴀᴋᴇ Tʜᴀɴᴅᴀ Hᴏ Jᴀᴏ</b>\n\n{mention}",
     "🌺 <b>Aᴀsᴍᴀɴ Bʜɪ Sᴀᴀғ Hᴀɪ Aᴀᴊ</b>\n\n{mention}",
     "🎵 <b>Gᴜɴɢᴜɴᴀᴛᴇ Hᴜᴇ Kᴀᴀᴍ Kᴀʀᴏ</b>\n\n{mention}",
-    "🌈 <b>Rᴀɴɢ Bɪʀᴀɴɢᴀ Dᴏᴘʜᴀʀ</b>\n\n{mention}"
+    "🌈 <b>Rᴀɴɢ Bɪʀᴀɴɢᴀ Dᴏᴘʜᴀʀ</b>\n\n{mention}",
 ]
 
 GN_MESSAGES = [
@@ -138,51 +169,26 @@ GN_MESSAGES = [
     "🦋 <b>Tɪᴛʟɪʏᴏɴ Kᴇ Sᴀᴀᴛʜ Sᴀᴘɴᴇ</b>\n\n{mention}",
     "🌈 <b>Rᴀɴɢ Bɪʀᴀɴɢᴇ Kʜᴀᴀʙ Dᴇᴋʜɴᴀ</b>\n\n{mention}",
     "🕯️ <b>Dɪʏᴇ Kɪ Rᴏsʜɴɪ Mᴇɪɴ Sᴏɴᴀ</b>\n\n{mention}",
-    "🌅 <b>Kᴀʟ Pʜɪʀ Mɪʟᴇɴɢᴇ Sᴜʙᴀʜ</b>\n\n{mention}"
+    "🌅 <b>Kᴀʟ Pʜɪʀ Mɪʟᴇɴɢᴇ Sᴜʙᴀʜ</b>\n\n{mention}",
 ]
 
 # ============================================================
 # --- EMOJI SETS ---
 # ============================================================
 EMOJI = [
-    "🦋🦋🦋🦋🦋",
-    "🧚🌸🧋🍬🫖",
-    "🥀🌷🌹🌺💐",
-    "🌸🌿💮🌱🌵",
-    "❤️💚💙💜🖤",
-    "💓💕💞💗💖",
-    "🌸💐🌺🌹🦋",
-    "🍔🦪🍛🍲🥗",
-    "🍎🍓🍒🍑🌶️",
-    "🧋🥤🧋🥛🍷",
-    "🍬🍭🧁🎂🍡",
-    "🍨🧉🍺☕🍻",
-    "🥪🥧🍦🍥🍚",
-    "🫖☕🍹🍷🥛",
-    "☕🧃🍩🍦🍙",
-    "🍁🌾💮🍂🌿",
-    "🌨️🌥️⛈️🌩️🌧️",
-    "🌷🏵️🌸🌺💐",
-    "💮🌼🌻🍀🍁",
-    "🧟🦸🦹🧙👸",
-    "🧅🍠🥕🌽🥦",
-    "🐷🐹🐭🐨🐻‍❄️",
-    "🦋🐇🐀🐈🐈‍⬛",
-    "🌼🌳🌲🌴🌵",
-    "🥩🍋🍐🍈🍇",
-    "🍴🍽️🔪🍶🥃",
-    "🕌🏰🏩⛩️🏩",
-    "🎉🎊🎈🎂🎀",
-    "🪴🌵🌴🌳🌲",
-    "🎄🎋🎍🎑🎎",
-    "🦅🦜🕊️🦤🦢",
-    "🦤🦩🦚🦃🦆",
-    "🐬🦭🦈🐋🐳",
-    "🐔🐟🐠🐡🦐",
-    "🦩🦀🦑🐙🦪",
-    "🐦🦂🕷️🕸️🐚",
-    "🥪🍰🥧🍨🍨",
-    "🥬🍉🧁🧇🔮",
+    "🦋🦋🦋🦋🦋", "🧚🌸🧋🍬🫖", "🥀🌷🌹🌺💐",
+    "🌸🌿💮🌱🌵", "❤️💚💙💜🖤", "💓💕💞💗💖",
+    "🌸💐🌺🌹🦋", "🍔🦪🍛🍲🥗", "🍎🍓🍒🍑🌶️",
+    "🧋🥤🧋🥛🍷", "🍬🍭🧁🎂🍡", "🍨🧉🍺☕🍻",
+    "🥪🥧🍦🍥🍚", "🫖☕🍹🍷🥛", "☕🧃🍩🍦🍙",
+    "🍁🌾💮🍂🌿", "🌨️🌥️⛈️🌩️🌧️", "🌷🏵️🌸🌺💐",
+    "💮🌼🌻🍀🍁", "🧟🦸🦹🧙👸", "🧅🍠🥕🌽🥦",
+    "🐷🐹🐭🐨🐻‍❄️", "🦋🐇🐀🐈🐈‍⬛", "🌼🌳🌲🌴🌵",
+    "🥩🍋🍐🍈🍇", "🍴🍽️🔪🍶🥃", "🕌🏰🏩⛩️🏩",
+    "🎉🎊🎈🎂🎀", "🪴🌵🌴🌳🌲", "🎄🎋🎍🎑🎎",
+    "🦅🦜🕊️🦤🦢", "🦤🦩🦚🦃🦆", "🐬🦭🦈🐋🐳",
+    "🐔🐟🐠🐡🦐", "🦩🦀🦑🐙🦪", "🐦🦂🕷️🕸️🐚",
+    "🥪🍰🥧🍨🍨", "🥬🍉🧁🧇🔮",
 ]
 
 # ============================================================
@@ -191,14 +197,63 @@ EMOJI = [
 def clean_text(text):
     if not text:
         return ""
-    return re.sub(r'([_*()~`>#+-=|{}.!])', r'\\\1', text)
+    return re.sub(r'([_*()~`>#+=|{}.!])', r'\\\1', text)
 
 async def is_admin(chat_id, user_id):
-    admin_ids = [
-        admin.user.id
-        async for admin in app.get_chat_members(chat_id, filter=ChatMembersFilter.ADMINISTRATORS)
-    ]
-    return user_id in admin_ids
+    try:
+        admin_ids = [
+            admin.user.id
+            async for admin in app.get_chat_members(chat_id, filter=ChatMembersFilter.ADMINISTRATORS)
+        ]
+        return user_id in admin_ids
+    except Exception as e:
+        print(f"[is_admin error]: {e}")
+        return False
+
+# ============================================================
+# --- ✅ SAFE SEND HELPER (socket error fix) ---
+# ============================================================
+async def safe_send(chat_id, text, replied=None, retries=3):
+    """
+    Network/socket error pe retry karta hai.
+    retries=3 matlab 3 baar try karega phir skip.
+    """
+    for attempt in range(retries):
+        try:
+            if replied:
+                await replied.reply_text(
+                    text,
+                    disable_web_page_preview=True,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            else:
+                await app.send_message(
+                    chat_id,
+                    text,
+                    disable_web_page_preview=True,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            return True  # success
+
+        except FloodWait as e:
+            wait = e.value + 2
+            print(f"[FloodWait] {wait}s — chat {chat_id}")
+            await asyncio.sleep(wait)
+            # FloodWait ke baad retry karo (loop continue)
+
+        except (PyroConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
+            # ✅ Yahi tha asli problem — socket.send() raised exception
+            wait = 5 * (attempt + 1)   # 5s, 10s, 15s
+            print(f"[Network Error] Attempt {attempt+1}/{retries}: {e} — waiting {wait}s")
+            await asyncio.sleep(wait)
+
+        except Exception as e:
+            print(f"[safe_send unknown error]: {e}")
+            await asyncio.sleep(2)
+            return False   # unknown error — skip this batch
+
+    print(f"[safe_send] All {retries} attempts failed for chat {chat_id}")
+    return False   # sab fail — tagging band karo bahar se
 
 # ============================================================
 # --- CORE EMOJI TAG ENGINE ---
@@ -226,30 +281,32 @@ async def process_members(chat_id, members, text=None, replied=None):
         emoji_index += 1
 
         if usernum == 5:
-            try:
-                if replied:
-                    await replied.reply_text(usertxt, disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
-                else:
-                    await app.send_message(chat_id, f"{text}\n{usertxt}", disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
-                await asyncio.sleep(2)
-                usernum = 0
-                usertxt = ""
-                emoji_sequence = random.choice(EMOJI)
-                emoji_index = 0
-            except FloodWait as e:
-                await asyncio.sleep(e.value + 2)
-            except Exception as e:
-                await app.send_message(chat_id, f"⚠️ Error: {str(e)}")
-                continue
+            payload = usertxt
+            if not replied and text:
+                payload = f"{text}\n{usertxt}"
 
+            success = await safe_send(chat_id, payload, replied=replied)
+            if not success:
+                # Network completely dead — tagging rok do
+                active_chats.pop(chat_id, None)
+                try:
+                    await app.send_message(chat_id, "⚠️ Network error aayi, tagging rok di. Dobara try karo.")
+                except Exception:
+                    pass
+                return tagged_members
+
+            usernum = 0
+            usertxt = ""
+            emoji_sequence = random.choice(EMOJI)
+            emoji_index = 0
+            await asyncio.sleep(2)
+
+    # Remaining (last batch < 5 members)
     if usernum > 0 and chat_id in active_chats:
-        try:
-            if replied:
-                await replied.reply_text(usertxt, disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
-            else:
-                await app.send_message(chat_id, f"{text}\n\n{usertxt}", disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
-        except Exception as e:
-            await app.send_message(chat_id, f"⚠️ Final batch error: {str(e)}")
+        payload = usertxt
+        if not replied and text:
+            payload = f"{text}\n\n{usertxt}"
+        await safe_send(chat_id, payload, replied=replied)
 
     return tagged_members
 
@@ -258,21 +315,53 @@ async def process_members(chat_id, members, text=None, replied=None):
 # ============================================================
 async def tag_users_greeting(chat_id, messages, tag_type):
     users = []
-    async for member in app.get_chat_members(chat_id):
-        if member.user.is_bot or member.user.is_deleted:
-            continue
-        users.append(member.user)
+    try:
+        async for member in app.get_chat_members(chat_id):
+            if member.user.is_bot or member.user.is_deleted:
+                continue
+            users.append(member.user)
+    except Exception as e:
+        print(f"[tag_users_greeting fetch error]: {e}")
+        active_chats.pop(chat_id, None)
+        return
 
     for user in users:
         if chat_id not in active_chats:
             break
-        mention = f"<b><a href='tg://user?id={user.id}'>{user.first_name}</a></b>"
-        msg = random.choice(messages).format(mention=mention)
-        await app.send_message(chat_id, msg, disable_web_page_preview=True)
-        await asyncio.sleep(3)
+        try:
+            mention = f"<b><a href='tg://user?id={user.id}'>{user.first_name}</a></b>"
+            msg = random.choice(messages).format(mention=mention)
+            await app.send_message(chat_id, msg, disable_web_page_preview=True)
+            await asyncio.sleep(3)
+
+        except FloodWait as e:
+            await asyncio.sleep(e.value + 2)
+
+        except (PyroConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
+            print(f"[Greeting network error]: {e}")
+            await asyncio.sleep(10)   # 10s wait karke resume
+
+        except Exception as e:
+            print(f"[Greeting unknown error]: {e}")
+            await asyncio.sleep(2)
 
     active_chats.pop(chat_id, None)
-    await app.send_message(chat_id, f"✅ <b>{tag_type} Tᴀɢɢɪɴɢ Dᴏɴᴇ!</b>")
+    try:
+        await app.send_message(chat_id, f"✅ <b>{tag_type} Tᴀɢɢɪɴɢ Dᴏɴᴇ!</b>")
+    except Exception:
+        pass
+
+# ✅ FIX 3: Task wrapper — crash silently nahi hoga
+async def safe_task(coro, chat_id, tag_type):
+    try:
+        await coro
+    except Exception as e:
+        print(f"[Task crashed] {tag_type} in {chat_id}: {e}")
+        active_chats.pop(chat_id, None)
+        try:
+            await app.send_message(chat_id, f"⚠️ {tag_type} tagging crash ho gayi. Network check karo.")
+        except Exception:
+            pass
 
 # ============================================================
 # --- 1. GLOBAL TRACKING ---
@@ -281,17 +370,20 @@ async def tag_users_greeting(chat_id, messages, tag_type):
 async def track_everything(client, message):
     if not message.from_user:
         return
-    data = load_data()
-    changed = False
-    if message.from_user.id not in data["users"]:
-        data["users"].append(message.from_user.id)
-        changed = True
-    if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        if message.chat.id not in data["groups"]:
-            data["groups"].append(message.chat.id)
+    try:
+        data = load_data()
+        changed = False
+        if message.from_user.id not in data["users"]:
+            data["users"].append(message.from_user.id)
             changed = True
-    if changed:
-        save_data(data)
+        if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+            if message.chat.id not in data["groups"]:
+                data["groups"].append(message.chat.id)
+                changed = True
+        if changed:
+            save_data(data)
+    except Exception as e:
+        print(f"[track_everything error]: {e}")
 
 # ============================================================
 # --- 2. BASIC COMMANDS ---
@@ -300,7 +392,7 @@ async def track_everything(client, message):
 async def start(client, message):
     text = (
         "╔══════════════════════════════╗\n"
-        "║            🎀 QTTAGbot v2.0  🎀   \n"
+        "║       🎀 QTTAGbot v2.0  🎀     \n"
         "╚══════════════════════════════╝\n\n"
         "✨ **WELCOME USER!**\n"
         "Main hoon aapki stylish tagging assistant.\n\n"
@@ -314,7 +406,10 @@ async def start(client, message):
         "**Niche button se mujhe add karein!**"
     )
     buttons = InlineKeyboardMarkup([[
-        InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{app.me.username}?startgroup=true")
+        InlineKeyboardButton(
+            "➕ ADD TO YOUR GROUP ➕",
+            url=f"https://t.me/{app.me.username}?startgroup=true"
+        )
     ]])
     await message.reply(text, reply_markup=buttons, parse_mode=enums.ParseMode.MARKDOWN)
 
@@ -322,7 +417,7 @@ async def start(client, message):
 async def help_cmd(client, message):
     help_text = (
         "╔══════════════════════════════╗\n"
-        "║        🎀 QTTAGbot HelpMsg 🎀  \n"
+        "║       🎀 QTTAGbot HelpMsg 🎀   \n"
         "╚══════════════════════════════╝\n\n"
         "📂 **TAGGING ENGINE**\n"
         "┣ `/etag` → Emoji Tag (Clean) 🎨\n"
@@ -354,41 +449,44 @@ async def help_cmd(client, message):
 @app.on_message(filters.command("afk") & filters.group)
 async def afk_set(client, message):
     user_id = str(message.from_user.id)
-    data = load_data()
+    data = await load_data_safe()
     reason = " ".join(message.command[1:]) or "AFK"
     data["afk_users"][user_id] = {
         "reason": reason,
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "name": message.from_user.first_name
+        "time":   datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "name":   message.from_user.first_name,
     }
-    save_data(data)
+    await save_data_safe(data)
     await message.reply(f"🌙 **{message.from_user.first_name}** AFK set!\n💬 Status: {reason}")
 
 @app.on_message(filters.command("back") & filters.group)
 async def afk_remove(client, message):
     user_id = str(message.from_user.id)
-    data = load_data()
+    data = await load_data_safe()
     if user_id in data["afk_users"]:
         del data["afk_users"][user_id]
-        save_data(data)
+        await save_data_safe(data)
         await message.reply(f"✅ **{message.from_user.first_name}** wapas aa gaya! 🎉")
     else:
         await message.reply(f"❌ {message.from_user.first_name} AFK tha hi nahi! 😏")
 
 @app.on_message(filters.text & filters.group, group=1)
 async def check_afk(client, message):
-    data = load_data()
+    if not message.from_user:
+        return
+    data = await load_data_safe()
     user_id = str(message.from_user.id)
 
+    # User khud message kare aur AFK ho toh hatao
     if user_id in data["afk_users"] and not message.text.startswith("/afk"):
-        afk_info = data["afk_users"][user_id]
-        del data["afk_users"][user_id]
-        save_data(data)
+        afk_info = data["afk_users"].pop(user_id)
+        await save_data_safe(data)
         await message.reply(
             f"✅ **{message.from_user.first_name}** wapas aa gaya! 🎉\n"
             f"⏰ AFK time: {afk_info['time']}"
         )
 
+    # Jisko reply kiya woh AFK hai?
     if message.reply_to_message and message.reply_to_message.from_user:
         reply_user_id = str(message.reply_to_message.from_user.id)
         if reply_user_id in data["afk_users"]:
@@ -405,16 +503,20 @@ async def check_afk(client, message):
 @app.on_message(filters.command(["etag", "mtag", "atag", "vtag"]) & filters.group)
 async def unified_tagger(client, message):
     chat_id = message.chat.id
+
+    if not await is_admin(chat_id, message.from_user.id):
+        return await message.reply("❌ Only admins can use tagging commands! 👑")
+
     if chat_id in active_chats:
         return await message.reply("❌ Ek tag pehle se chal raha hai! `/stoptag` karo. 🎀")
 
-    cmd = message.command[0]
-    data = load_data()
+    cmd     = message.command[0]
+    data    = load_data()
     tag_msg = " ".join(message.command[1:]) or data["custom_messages"].get(str(chat_id), "Hello Everyone!")
 
     active_chats[chat_id] = cmd
     progress = await message.reply("⏳ Members fetch kar rahi hoon... 🎀")
-    members = []
+    members  = []
 
     try:
         if cmd == "atag":
@@ -429,9 +531,10 @@ async def unified_tagger(client, message):
                             members.append(m.user)
                     else:
                         members.append(m.user)
+
     except Exception as e:
         active_chats.pop(chat_id, None)
-        return await progress.edit_text(f"❌ Error: {e}")
+        return await progress.edit_text(f"❌ Members fetch error: {e}")
 
     if not members:
         active_chats.pop(chat_id, None)
@@ -442,20 +545,28 @@ async def unified_tagger(client, message):
 
     if cmd == "etag":
         class FakeMember:
-            def __init__(self, user): self.user = user
-        fake_members = [FakeMember(u) for u in members]
-        tagged = await process_members(chat_id, fake_members, text=tag_msg)
+            def __init__(self, u): self.user = u
+        tagged = await process_members(chat_id, [FakeMember(u) for u in members], text=tag_msg)
     else:
+        tagged = 0
         for i in range(0, total, 5):
             if chat_id not in active_chats:
                 break
-            batch = members[i:i+5]
+            batch    = members[i:i+5]
             mentions = ", ".join([f"[{u.first_name}](tg://user?id={u.id})" for u in batch])
-            await client.send_message(chat_id, f"**{tag_msg}**\n\n{mentions}", parse_mode=enums.ParseMode.MARKDOWN)
+            success  = await safe_send(chat_id, f"**{tag_msg}**\n\n{mentions}")
+            if not success:
+                active_chats.pop(chat_id, None)
+                await progress.edit_text("⚠️ Network error — tagging rok di.")
+                return
+            tagged += len(batch)
             await asyncio.sleep(2)
 
     active_chats.pop(chat_id, None)
-    await progress.edit_text(f"✅ Tagging Complete! 🎀\n📊 Total: {total}")
+    try:
+        await progress.edit_text(f"✅ Tagging Complete! 🎀\n📊 Total: {total}")
+    except Exception:
+        pass
 
 # ============================================================
 # --- 5. ALL / ADMINTAG COMMANDS ---
@@ -477,17 +588,20 @@ async def tag_all_users(client, message):
     async for m in app.get_chat_members(chat_id):
         members.append(m)
 
-    total_members = len(members)
+    total            = len(members)
     active_chats[chat_id] = "all"
-
-    text = None
-    if not replied:
-        text = clean_text(message.text.split(None, 1)[1])
+    text = None if replied else clean_text(message.text.split(None, 1)[1])
 
     tagged = await process_members(chat_id, members, text=text, replied=replied)
     active_chats.pop(chat_id, None)
 
-    await app.send_message(chat_id, f"✅ Tagging completed!\n👥 Total: {total_members}\n✅ Tagged: {tagged}")
+    try:
+        await app.send_message(
+            chat_id,
+            f"✅ Tagging completed!\n👥 Total: {total}\n✅ Tagged: {tagged}"
+        )
+    except Exception:
+        pass
 
 @app.on_message(filters.command(["admintag", "adminmention", "admins", "report"]) & filters.group)
 async def tag_all_admins(client, message):
@@ -508,17 +622,20 @@ async def tag_all_admins(client, message):
     async for m in app.get_chat_members(chat_id, filter=ChatMembersFilter.ADMINISTRATORS):
         members.append(m)
 
-    total_admins = len(members)
+    total            = len(members)
     active_chats[chat_id] = "admintag"
-
-    text = None
-    if not replied:
-        text = clean_text(message.text.split(None, 1)[1])
+    text = None if replied else clean_text(message.text.split(None, 1)[1])
 
     tagged = await process_members(chat_id, members, text=text, replied=replied)
     active_chats.pop(chat_id, None)
 
-    await app.send_message(chat_id, f"✅ Admin tagging completed!\n👑 Total: {total_admins}\n✅ Tagged: {tagged}")
+    try:
+        await app.send_message(
+            chat_id,
+            f"✅ Admin tagging completed!\n👑 Total: {total}\n✅ Tagged: {tagged}"
+        )
+    except Exception:
+        pass
 
 # ============================================================
 # --- 6. GREETING TAGS (GM / GA / GN) ---
@@ -527,28 +644,34 @@ async def tag_all_admins(client, message):
 async def gmtag(client, message):
     chat_id = message.chat.id
     if chat_id in active_chats:
-        return await message.reply("⚠️ <b>Gᴏᴏᴅ Mᴏʀɴɪɴɢ Tᴀɢɢɪɴɢ Aʟʀᴇᴀᴅʏ Rᴜɴɴɪɴɢ.</b>")
+        return await message.reply("⚠️ <b>Good Morning Tagging Already Running.</b>")
     active_chats[chat_id] = "gmtag"
     await message.reply("☀️ <b>Gᴏᴏᴅ Mᴏʀɴɪɴɢ Tᴀɢɢɪɴɢ Sᴛᴀʀᴛᴇᴅ...</b>")
-    asyncio.create_task(tag_users_greeting(chat_id, GM_MESSAGES, "Gᴏᴏᴅ Mᴏʀɴɪɴɢ"))
+    asyncio.create_task(
+        safe_task(tag_users_greeting(chat_id, GM_MESSAGES, "Gᴏᴏᴅ Mᴏʀɴɪɴɢ"), chat_id, "gmtag")
+    )
 
 @app.on_message(filters.command("gatag") & filters.group)
 async def gatag(client, message):
     chat_id = message.chat.id
     if chat_id in active_chats:
-        return await message.reply("⚠️ <b>Aғᴛᴇʀɴᴏᴏɴ Tᴀɢɢɪɴɢ Aʟʀᴇᴀᴅʏ Oɴ.</b>")
+        return await message.reply("⚠️ <b>Afternoon Tagging Already On.</b>")
     active_chats[chat_id] = "gatag"
     await message.reply("☀️ <b>Aғᴛᴇʀɴᴏᴏɴ Tᴀɢɢɪɴɢ Sᴛᴀʀᴛᴇᴅ...</b>")
-    asyncio.create_task(tag_users_greeting(chat_id, GA_MESSAGES, "Aғᴛᴇʀɴᴏᴏɴ"))
+    asyncio.create_task(
+        safe_task(tag_users_greeting(chat_id, GA_MESSAGES, "Aғᴛᴇʀɴᴏᴏɴ"), chat_id, "gatag")
+    )
 
 @app.on_message(filters.command("gntag") & filters.group)
 async def gntag(client, message):
     chat_id = message.chat.id
     if chat_id in active_chats:
-        return await message.reply("⚠️ <b>Nɪɢʜᴛ Tᴀɢɢɪɴɢ Aʟʀᴇᴀᴅʏ Oɴ.</b>")
+        return await message.reply("⚠️ <b>Night Tagging Already On.</b>")
     active_chats[chat_id] = "gntag"
     await message.reply("🌙 <b>Nɪɢʜᴛ Tᴀɢɢɪɴɢ Sᴛᴀʀᴛᴇᴅ...</b>")
-    asyncio.create_task(tag_users_greeting(chat_id, GN_MESSAGES, "Gᴏᴏᴅ Nɪɢʜᴛ"))
+    asyncio.create_task(
+        safe_task(tag_users_greeting(chat_id, GN_MESSAGES, "Gᴏᴏᴅ Nɪɢʜᴛ"), chat_id, "gntag")
+    )
 
 # ============================================================
 # --- 7. STOP COMMANDS ---
@@ -568,25 +691,26 @@ async def stop_all(client, message):
 @app.on_message(filters.command("couple") & filters.group)
 async def couple_cmd(client, message):
     chat_id = str(message.chat.id)
-    today = datetime.now().strftime("%Y-%m-%d")
-    data = load_data()
+    today   = datetime.now().strftime("%Y-%m-%d")
+    data    = await load_data_safe()
 
+    # Aaj ki jodi pehle se hai?
     if chat_id in data["daily_couples"] and data["daily_couples"][chat_id].get("date") == today:
         saved = data["daily_couples"][chat_id]
         couple_msg = (
             "╔═══════════════════════════╗\n"
-            "║       💝 TODAY'S COUPLE 💝      ║\n"
+            "║      💝 TODAY'S COUPLE 💝     ║\n"
             "╚═══════════════════════════╝\n\n"
             f"👫 **{saved['couple1_name']}** ❤️ **{saved['couple2_name']}**\n\n"
             f"💖 Compatibility: **{saved['compatibility']}%**\n"
             f"🎀 Status: {get_couple_status(saved['compatibility'])}\n"
             f"✨ Matched on: {today}\n\n"
-            f"💕 *Ye aaj ki special jodi hai!* 🌸"
+            "💕 *Ye aaj ki special jodi hai!* 🌸"
         )
         return await message.reply(couple_msg)
 
     progress = await message.reply("💕 Aaj ki jodi dhundh rahi hoon... 🎀")
-    members = []
+    members  = []
     async for m in client.get_chat_members(message.chat.id):
         if not m.user.is_bot and not m.user.is_deleted:
             members.append(m.user)
@@ -594,22 +718,22 @@ async def couple_cmd(client, message):
     if len(members) < 2:
         return await progress.edit_text("❌ Kam se kam 2 active members chahiye! 🎀")
 
-    c1, c2 = random.sample(members, 2)
+    c1, c2        = random.sample(members, 2)
     compatibility = random.randint(60, 100)
 
     data["daily_couples"][chat_id] = {
-        "date": today,
-        "couple1_id": c1.id,
+        "date":         today,
+        "couple1_id":   c1.id,
         "couple1_name": c1.first_name,
-        "couple2_id": c2.id,
+        "couple2_id":   c2.id,
         "couple2_name": c2.first_name,
-        "compatibility": compatibility
+        "compatibility": compatibility,
     }
-    save_data(data)
+    await save_data_safe(data)
 
     couple_msg = (
         "╔══════════════════════╗\n"
-        "║       💝 TODAY'S COUPLE 💝  \n"
+        "║    💝 TODAY'S COUPLE 💝  \n"
         "╚══════════════════════╝\n\n"
         f"👫 {c1.mention} ❤️ {c2.mention}\n\n"
         f"💖 Compatibility: **{compatibility}%**\n"
@@ -626,15 +750,15 @@ def get_couple_status(compatibility):
     else: return "Good Vibes! 🌸"
 
 def get_couple_message(compatibility):
-    messages = {
+    msgs = {
         90: ["Ye jodi toh jannat mein bani hai! 💫", "Made for each other! 👼", "Isse perfect aur kya! 🎯"],
         80: ["Chemistry toh dekho inki! 🔥", "Pyaar ho jayega pakka! 💘", "Couple goals! 🎀"],
         70: ["Sweet couple alert! 🍭", "Cute jodi ban gayi! 🌸", "Love is in the air! 💕"],
-        60: ["Ek baar try toh karo! 💭", "Kuch special ho sakta hai! ✨", "Pyaar ka chance hai! 💌"]
+        60: ["Ek baar try toh karo! 💭", "Kuch special ho sakta hai! ✨", "Pyaar ka chance hai! 💌"],
     }
     for threshold in [90, 80, 70, 60]:
         if compatibility >= threshold:
-            return random.choice(messages[threshold])
+            return random.choice(msgs[threshold])
     return "Dekho kya hota hai! 🎲"
 
 # ============================================================
@@ -658,30 +782,56 @@ async def broadcast_cmd(client, message):
         return await message.reply("❌ Reply to a message to broadcast!")
     data = load_data()
     sent = 0
-    msg = await message.reply(f"📢 Broadcasting to {len(data['groups'])} groups...")
+    msg  = await message.reply(f"📢 Broadcasting to {len(data['groups'])} groups...")
     for gid in data["groups"]:
         try:
             await message.reply_to_message.copy(gid)
             sent += 1
-            await asyncio.sleep(0.3)
-        except:
+            await asyncio.sleep(0.5)
+        except FloodWait as e:
+            await asyncio.sleep(e.value + 1)
+        except Exception:
             continue
     await msg.edit_text(f"✅ Broadcast Done!\n🚀 Sent to: {sent} groups.")
+
+# ============================================================
+# --- 9b. RESTART COMMAND (Owner Only) ---
+# ============================================================
+@app.on_message(filters.command("restart") & filters.user(OWNER_ID))
+async def restart_cmd(client, message):
+    # Sabhi active tagging band karo pehle
+    active_chats.clear()
+    msg = await message.reply(
+        "🔄 **Restarting QTTAGbot...**\n\n"
+        "⏳ Ek second ruko... 🎀"
+    )
+    await asyncio.sleep(1)
+    await msg.edit_text(
+        "✅ **Bot Restart Ho Raha Hai!**\n\n"
+        "🌸 Thodi der mein wapas aa jaayega!"
+    )
+    # Graceful restart — same process re-execute karo
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 # ============================================================
 # --- 10. CHATBOT (lowest priority) ---
 # ============================================================
 @app.on_message(filters.text & filters.group, group=3)
 async def chatbot_reply(client, message):
-    if message.text.startswith("/"):
+    if not message.from_user or message.text.startswith("/"):
         return
     msg = message.text.lower().strip()
     if msg in exact_responses:
-        await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-        await message.reply(f"{random.choice(exact_responses[msg])} {message.from_user.first_name}! 💕")
+        try:
+            await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+            await message.reply(
+                f"{random.choice(exact_responses[msg])} {message.from_user.first_name}! 💕"
+            )
+        except Exception as e:
+            print(f"[chatbot error]: {e}")
 
 # ============================================================
 # --- BOOT ---
 # ============================================================
-print("🌸 QTTAGbot LOADED! (Rank system removed - lightweight version) 🎀")
+print("🌸 QTTAGbot LOADED! Fixed version — socket errors handled. 🎀")
 app.run()
