@@ -7,7 +7,8 @@ import sys
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.enums import ChatMembersFilter, ParseMode
-from pyrogram.errors import FloodWait, NetworkMigrate, PhoneMigrate, ConnectionError as PyroConnectionError
+from pyrogram.errors import FloodWait, NetworkMigrate, PhoneMigrate
+from pyrogram.errors import RPCError as PyroConnectionError
 from datetime import datetime
 from flask import Flask
 from threading import Thread
