@@ -10,7 +10,7 @@ from pyrogram import enums
 BOT_NAME_TRIGGERS = ["qt", "qttag", "qtbot", "qt bot"]
 
 USER_COOLDOWN = 15        # seconds
-MSG_TRIGGER_COUNT = 10     # har 5 msg ke baad reply
+MSG_TRIGGER_COUNT = 10     # har 10 msg ke baad reply
 CLEANUP_INTERVAL = 1800   # 30 min mein RAM cleanup
 
 # RAM optimized
@@ -32,7 +32,6 @@ REPLY_EMOJIS = [
 # ============================================================
 # --- RESPONSE POOLS ---
 # ============================================================
-
 GREETINGS = {
     "triggers": ["hi", "hello", "hey", "hii", "hiii", "hiiii", "helo", "helloo", "heyy", "heyyy", "yo", "yoo", "sup", "wassup", "whatsup"],
     "responses": [
@@ -66,11 +65,11 @@ GN_CHAT = {
 GM_CHAT = {
     "triggers": ["good morning", "gm", "goodmorning", "subah", "uth gaya", "uth gayi", "gm all", "morning", "suba hua"],
     "responses": [
-        "Good Morning! ☀️ Aaj ka din tujhara hi hai!",
+        "Good Morning! ☀️ Aaj ka din tuhaara hi hai!",
         "GM!! 🌸 Uth gaye finally? Socha so hi jaoge aaj 😜",
         "Ohhh rise and shine! ☀️💕 Chai pi li?",
         "Good Morning! 🌼 Aaj kuch mast karte hain group mein!",
-        "GM bhai/behen! ✨ Neend poori hui ya raat bhar phone chala? 😏",
+        "GM bhai/behen! ✨ Neander poori hui ya raat bhar phone chala? 😏",
         "Subaah ho gayi! ☀️ Tujhe dekh ke dil khush ho gaya! 💕",
         "GM GM! 🌅 Aaj bhi active rehna haan! 🎀",
         "Ooo morning! ☀️ Aaj phir dhamaal machaate hain? 😈",
@@ -82,7 +81,7 @@ GA_CHAT = {
     "responses": [
         "Good Afternoon! ☀️ Khana kha liya? 🍛",
         "Dopahar ho gayi! 🌤️ So mat jaana abhi 😜",
-        "GA! ☀️ Aaj lunch mein kya tha? Mujhe bhi batao 🥺",
+        "GA! ☀️ Aaj lunch mein kya تھا? Mujhe bhi batao 🥺",
         "Afternoon vibes! 🌸 Neend aa rahi hai na? 😴 Uth ja!",
         "Good Afternoon! 💫 Aaj bhi dhamaal chal raha hai group mein! 🎀",
     ]
@@ -241,7 +240,7 @@ ACTIVITY_BOOSTERS = [
 
 FALLBACK = [
     "Hmm interesting! 🤔💕 Aur bolo!",
-    "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha!",
+    "Ohhh! 🎀 Ye toh mujhe pata hi nahi تھا!",
     "Acha acha! ✨ Group waalon ko bhi batao ye!",
     "Waah yaar! 💕 Kya baat hai!",
     "Haha! 😂🎀 Group mein aisa hi hota hai!",
@@ -305,14 +304,12 @@ def _cleanup_memory():
     global last_cleanup
     now = datetime.now().timestamp()
     if now - last_cleanup < CLEANUP_INTERVAL:
-        return  # abhi cleanup ki zaroorat nahi
+        return
 
-    # Expired cooldowns delete karo
     expired = [u for u, t in user_last_reply.items() if now - t > USER_COOLDOWN]
     for u in expired:
         del user_last_reply[u]
 
-    # 100+ groups ho toh counter clear
     if len(group_msg_counter) > 100:
         group_msg_counter.clear()
 
@@ -323,7 +320,7 @@ def _cleanup_memory():
 # ============================================================
 # --- STICKER HANDLER ---
 # ============================================================
-async def handle_sticker(client, message):
+async def handle_sticker(client, message, active_chats):
     if not message.sticker:
         return
     if not message.sticker.set_name:
@@ -331,13 +328,9 @@ async def handle_sticker(client, message):
 
     user_id = message.from_user.id if message.from_user else 0
 
-    # Tagging chal rahi ho toh ignore
-    try:
-        from main import active_chats
-        if message.chat.id in active_chats:
-            return
-    except ImportError:
-        pass
+    # `active_chats` ab seedha function argument se pass ho raha hai
+    if message.chat.id in active_chats:
+        return
 
     if is_on_cooldown(user_id):
         return
@@ -362,7 +355,7 @@ async def handle_sticker(client, message):
 # ============================================================
 # --- MAIN TEXT HANDLER ---
 # ============================================================
-async def handle_chat(client, message):
+async def handle_chat(client, message, active_chats):
     if not message.from_user:
         return
     if not message.text:
@@ -370,7 +363,6 @@ async def handle_chat(client, message):
     if message.text.startswith("/"):
         return
 
-    # Bot info (cached feel ke liye try/except)
     try:
         me = await client.get_me()
         bot_id = me.id
@@ -379,7 +371,6 @@ async def handle_chat(client, message):
         bot_id = None
         bot_username = ""
 
-    # Bot ka khud ka message ignore
     if bot_id and message.from_user.id == bot_id:
         return
 
@@ -387,27 +378,19 @@ async def handle_chat(client, message):
     user_id = message.from_user.id
     text = message.text.strip()
 
-    # Tagging chal rahi ho toh bilkul chup - count bhi nahi
-    try:
-        from main import active_chats
-        if chat_id in active_chats:
-            return
-    except ImportError:
-        pass
+    # `active_chats` ab seedha function argument se check ho raha hai
+    if chat_id in active_chats:
+        return
 
-    # RAM cleanup (har 30 min, non-blocking)
     _cleanup_memory()
 
-    # Reply to bot check
     is_reply_to_bot = False
     if message.reply_to_message and message.reply_to_message.from_user:
         if bot_id and message.reply_to_message.from_user.id == bot_id:
             is_reply_to_bot = True
 
-    # Trigger check
     triggered = is_reply_to_bot or should_respond(text, bot_username)
 
-    # Message counter - sirf tab jab directly triggered nahi
     if not triggered:
         group_msg_counter[chat_id] = group_msg_counter.get(chat_id, 0) + 1
         if group_msg_counter[chat_id] >= MSG_TRIGGER_COUNT:
@@ -416,12 +399,10 @@ async def handle_chat(client, message):
         else:
             return  # count hua par trigger nahi abhi
 
-    # Cooldown check
     if is_on_cooldown(user_id):
         return
     set_cooldown(user_id)
 
-    # Emoji only message
     if is_emoji_only(text):
         try:
             await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
@@ -431,7 +412,6 @@ async def handle_chat(client, message):
             print(f"[Emoji reply error]: {e}")
         return
 
-    # Normal text response
     response = find_response(text)
     if not response:
         response = random.choice(FALLBACK)
@@ -456,24 +436,15 @@ async def handle_chat(client, message):
 # ============================================================
 # --- ACTIVITY BOOSTER ---
 # ============================================================
-async def activity_booster(client, chat_id: int, interval_minutes: int = 5):
+async def activity_booster(client, chat_id: int, active_chats, interval_minutes: int = 5):
     """
     Har X minute mein group mein ek random activity message bhejo.
-    Tagging chal rahi ho toh skip karta hai.
-
-    main.py mein use karo:
-        asyncio.create_task(activity_booster(app, YOUR_CHAT_ID, interval_minutes=5))
     """
     while True:
         await asyncio.sleep(interval_minutes * 60)
 
-        # Tagging chal rahi ho toh skip
-        try:
-            from main import active_chats
-            if chat_id in active_chats:
-                continue
-        except ImportError:
-            pass
+        if chat_id in active_chats:
+            continue
 
         try:
             msg = random.choice(ACTIVITY_BOOSTERS)
