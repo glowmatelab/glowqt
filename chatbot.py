@@ -9,8 +9,14 @@ from pyrogram import enums
 # ============================================================
 BOT_NAME_TRIGGERS = ["qt", "qttag", "qtbot", "qt bot"]
 
-USER_COOLDOWN = 15
-user_last_reply = {}  # user_id -> timestamp
+USER_COOLDOWN = 15        # seconds
+MSG_TRIGGER_COUNT = 10     # har 5 msg ke baad reply
+CLEANUP_INTERVAL = 1800   # 30 min mein RAM cleanup
+
+# RAM optimized
+user_last_reply = {}      # user_id -> timestamp
+group_msg_counter = {}    # chat_id -> count
+last_cleanup = 0.0
 
 # ============================================================
 # --- EMOJI SETS FOR EMOJI-ONLY REPLY ---
@@ -186,24 +192,15 @@ FOOD = {
     ]
 }
 
-# --- SHORT SLANG / TG FAMOUS WORDS ---
 SHORT_SLANG = {
     "triggers": [
-        # death/reactions
         "dead", "💀", "ded", "im dead", "i'm dead", "died", "rip",
-        # telegram short
         "tg", "lol", "lmao", "lmfao", "rofl", "omg", "omfg", "wtf", "wth",
-        "ngl", "imo", "tbh", "irl", "idk", "idc", "fyi", "btw", "brb", "afk",
-        "gg", "glhf", "ez", "noob", "npc", "ratio", "l", "w", "based",
-        # hindi short
+        "ngl", "imo", "tbh", "irl", "idk", "idc", "fyi", "btw", "brb",
+        "gg", "glhf", "ez", "noob", "npc", "ratio", "based",
         "kyu", "kyun", "kyo", "nah", "nope", "yep", "yup", "ikr",
         "smh", "fr", "frfr", "no cap", "cap", "slay", "vibe", "vibes",
-        # ban/kick related
-        "ban", "banned", "kick", "kicked", "report", "spam",
-        # why
         "why", "y tho", "why tho", "kaise", "kab",
-        # all / n
-        "n", "all", "everyone", "sab",
     ],
     "responses": [
         "💀💀💀",
@@ -220,11 +217,6 @@ SHORT_SLANG = {
         "No cap fr fr 💯😂",
         "W move yaar! 🏆💕",
         "Bro/Sis really said that 💀😂",
-        "Ratio? Nahi hoga mujhe! 😤💕",
-        "TG pe aisa hi hota hai yaar 😂🎀",
-        "Kyu? Kyunki main hun na! 😏💕",
-        "Ban? Kick? Yahan sab dost hain! 🌸",
-        "Why tho 🤔 Main samjha nahi/samjhi nahi!",
         "IKR!! 😭💕 Bilkul mere dil ki baat!",
         "Smh 😤 Ye log bhi na...",
         "NPC behavior detected 🤖😂",
@@ -232,7 +224,6 @@ SHORT_SLANG = {
     ]
 }
 
-# --- ACTIVITY BOOSTERS ---
 ACTIVITY_BOOSTERS = [
     "Aye group waalon! 🎀 Kaun kaun active hai abhi? Bolo bolo! 💕",
     "Itna sannata kyun hai? 😏 Koi toh kuch bolo! ✨",
@@ -248,7 +239,6 @@ ACTIVITY_BOOSTERS = [
     "Chal ek poll: Raat ko sone wale 🌙 ya raat bhar jaagne wale 🦉? Bolo!",
 ]
 
-# --- FALLBACK ---
 FALLBACK = [
     "Hmm interesting! 🤔💕 Aur bolo!",
     "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha!",
@@ -272,28 +262,22 @@ ALL_PATTERNS = [
 ]
 
 # ============================================================
-# --- EMOJI ONLY MESSAGE DETECTOR ---
+# --- HELPER FUNCTIONS ---
 # ============================================================
 def is_emoji_only(text: str) -> bool:
-    """Check karo message sirf emoji hai ya nahi"""
     import unicodedata
     cleaned = text.strip()
     if not cleaned:
         return False
     for char in cleaned:
         cat = unicodedata.category(char)
-        # So = Other Symbol (emoji category), Cf = Format chars (ZWJ etc)
         if cat not in ('So', 'Cf', 'Mn', 'Sk') and char not in (' ', '\u200d', '\ufe0f', '\u20e3'):
             return False
     return True
 
-# ============================================================
-# --- CORE MATCH FUNCTION ---
-# ============================================================
 def find_response(text: str):
     text_lower = text.lower().strip()
     clean = re.sub(r'[^\w\s]', '', text_lower)
-
     for pattern in ALL_PATTERNS:
         for trigger in pattern["triggers"]:
             if trigger in clean or trigger in text_lower:
@@ -311,84 +295,74 @@ def should_respond(text: str, bot_username: str) -> bool:
 
 def is_on_cooldown(user_id: int) -> bool:
     now = datetime.now().timestamp()
-    last = user_last_reply.get(user_id, 0)
-    return (now - last) < USER_COOLDOWN
+    return (now - user_last_reply.get(user_id, 0)) < USER_COOLDOWN
 
 def set_cooldown(user_id: int):
     user_last_reply[user_id] = datetime.now().timestamp()
+
+def _cleanup_memory():
+    """RAM cleanup - expired data delete karo"""
+    global last_cleanup
+    now = datetime.now().timestamp()
+    if now - last_cleanup < CLEANUP_INTERVAL:
+        return  # abhi cleanup ki zaroorat nahi
+
+    # Expired cooldowns delete karo
+    expired = [u for u, t in user_last_reply.items() if now - t > USER_COOLDOWN]
+    for u in expired:
+        del user_last_reply[u]
+
+    # 100+ groups ho toh counter clear
+    if len(group_msg_counter) > 100:
+        group_msg_counter.clear()
+
+    last_cleanup = now
+    if expired:
+        print(f"[Cleanup] {len(expired)} expired cooldowns cleared")
 
 # ============================================================
 # --- STICKER HANDLER ---
 # ============================================================
 async def handle_sticker(client, message):
-    """
-    Sticker aaye toh same pack se random sticker bhejo.
-    main.py mein add karo:
-
-        from chatbot import handle_sticker
-
-        @app.on_message(filters.sticker & filters.group, group=3)
-        async def sticker_reply(client, message):
-            await handle_sticker(client, message)
-    """
     if not message.sticker:
         return
-
-    sticker = message.sticker
-    set_name = sticker.set_name
-
-    if not set_name:
+    if not message.sticker.set_name:
         return
 
-    # Cooldown check
     user_id = message.from_user.id if message.from_user else 0
+
+    # Tagging chal rahi ho toh ignore
+    try:
+        from main import active_chats
+        if message.chat.id in active_chats:
+            return
+    except ImportError:
+        pass
+
     if is_on_cooldown(user_id):
         return
 
     try:
-        # Same pack ke saare stickers fetch karo
-        sticker_set = await client.get_sticker_set(set_name)
+        sticker_set = await client.get_sticker_set(message.sticker.set_name)
         all_stickers = sticker_set.stickers
-
         if not all_stickers:
             return
 
-        # Random sticker choose karo (same sticker exclude karna optional)
-        choices = [s for s in all_stickers if s.file_id != sticker.file_id]
+        choices = [s for s in all_stickers if s.file_id != message.sticker.file_id]
         if not choices:
             choices = all_stickers
 
-        chosen = random.choice(choices)
-
-        # Typing jaisi feel ke liye thoda wait
         await asyncio.sleep(random.uniform(0.5, 1.5))
-
         set_cooldown(user_id)
-        await message.reply_sticker(chosen.file_id)
+        await message.reply_sticker(random.choice(choices).file_id)
 
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
-
 
 # ============================================================
 # --- MAIN TEXT HANDLER ---
 # ============================================================
 async def handle_chat(client, message):
-    """
-    Main chatbot handler.
-
-    main.py mein replace karo purana chatbot_reply:
-
-        from chatbot import handle_chat, handle_sticker
-
-        @app.on_message(filters.text & filters.group, group=3)
-        async def chatbot_reply(client, message):
-            await handle_chat(client, message)
-
-        @app.on_message(filters.sticker & filters.group, group=3)
-        async def sticker_reply(client, message):
-            await handle_sticker(client, message)
-    """
     if not message.from_user:
         return
     if not message.text:
@@ -396,17 +370,33 @@ async def handle_chat(client, message):
     if message.text.startswith("/"):
         return
 
+    # Bot info (cached feel ke liye try/except)
+    try:
+        me = await client.get_me()
+        bot_id = me.id
+        bot_username = me.username or ""
+    except Exception:
+        bot_id = None
+        bot_username = ""
+
+    # Bot ka khud ka message ignore
+    if bot_id and message.from_user.id == bot_id:
+        return
+
+    chat_id = message.chat.id
     user_id = message.from_user.id
     text = message.text.strip()
 
-    # Bot username
+    # Tagging chal rahi ho toh bilkul chup - count bhi nahi
     try:
-        me = await client.get_me()
-        bot_username = me.username or ""
-        bot_id = me.id
-    except Exception:
-        bot_username = ""
-        bot_id = None
+        from main import active_chats
+        if chat_id in active_chats:
+            return
+    except ImportError:
+        pass
+
+    # RAM cleanup (har 30 min, non-blocking)
+    _cleanup_memory()
 
     # Reply to bot check
     is_reply_to_bot = False
@@ -414,41 +404,45 @@ async def handle_chat(client, message):
         if bot_id and message.reply_to_message.from_user.id == bot_id:
             is_reply_to_bot = True
 
+    # Trigger check
     triggered = is_reply_to_bot or should_respond(text, bot_username)
-    if not triggered:
-        return
 
-    # Cooldown
+    # Message counter - sirf tab jab directly triggered nahi
+    if not triggered:
+        group_msg_counter[chat_id] = group_msg_counter.get(chat_id, 0) + 1
+        if group_msg_counter[chat_id] >= MSG_TRIGGER_COUNT:
+            group_msg_counter[chat_id] = 0  # reset
+            triggered = True
+        else:
+            return  # count hua par trigger nahi abhi
+
+    # Cooldown check
     if is_on_cooldown(user_id):
         return
-
     set_cooldown(user_id)
 
-    # --- EMOJI ONLY MESSAGE ---
+    # Emoji only message
     if is_emoji_only(text):
         try:
-            await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+            await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
             await asyncio.sleep(random.uniform(0.5, 1.2))
-            reply_emoji = random.choice(REPLY_EMOJIS)
-            await message.reply(reply_emoji)
+            await message.reply(random.choice(REPLY_EMOJIS))
         except Exception as e:
             print(f"[Emoji reply error]: {e}")
         return
 
-    # --- NORMAL TEXT RESPONSE ---
+    # Normal text response
     response = find_response(text)
     if not response:
         response = random.choice(FALLBACK)
 
-    # Typing action
     try:
-        await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+        await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
         await asyncio.sleep(random.uniform(0.8, 2.0))
     except Exception:
         pass
 
     name = message.from_user.first_name or "yaar"
-    # Name add karo agar response mein nahi hai
     if name.lower() not in response.lower() and random.random() > 0.4:
         final_response = f"{response} {name}! 💕"
     else:
@@ -459,21 +453,30 @@ async def handle_chat(client, message):
     except Exception as e:
         print(f"[Chatbot reply error]: {e}")
 
-
 # ============================================================
-# --- ACTIVITY BOOSTER (optional) ---
+# --- ACTIVITY BOOSTER ---
 # ============================================================
-async def activity_booster(client, chat_id: int, interval_minutes: int = 60):
+async def activity_booster(client, chat_id: int, interval_minutes: int = 5):
     """
-    Optional: Har X minute mein group mein ek random message bhejo.
+    Har X minute mein group mein ek random activity message bhejo.
+    Tagging chal rahi ho toh skip karta hai.
 
-    Usage in main.py:
-        asyncio.create_task(activity_booster(app, YOUR_CHAT_ID, interval_minutes=60))
+    main.py mein use karo:
+        asyncio.create_task(activity_booster(app, YOUR_CHAT_ID, interval_minutes=5))
     """
     while True:
         await asyncio.sleep(interval_minutes * 60)
+
+        # Tagging chal rahi ho toh skip
+        try:
+            from main import active_chats
+            if chat_id in active_chats:
+                continue
+        except ImportError:
+            pass
+
         try:
             msg = random.choice(ACTIVITY_BOOSTERS)
             await client.send_message(chat_id, msg)
         except Exception as e:
-            print(f"[Activity booster error]: {e}")
+            print(f"[Activity booster error] chat {chat_id}: {e}")
