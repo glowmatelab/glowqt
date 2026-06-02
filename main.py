@@ -4,6 +4,7 @@ import os
 import random
 import re
 import sys
+from chatbot import handle_chat, handle_sticker
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.enums import ChatMembersFilter, ParseMode
@@ -881,18 +882,11 @@ async def restart_cmd(client, message):
 # ============================================================
 @app.on_message(filters.text & filters.group, group=3)
 async def chatbot_reply(client, message):
-    if not message.from_user or message.text.startswith("/"):
-        return
-    msg = message.text.lower().strip()
-    if msg in exact_responses:
-        try:
-            await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-            await message.reply(
-                f"{random.choice(exact_responses[msg])} {message.from_user.first_name}! 💕"
-            )
-        except Exception as e:
-            print(f"[chatbot error]: {e}")
+    await handle_chat(client, message)
 
+@app.on_message(filters.sticker & filters.group, group=3)
+async def sticker_reply(client, message):
+    await handle_sticker(client, message)
 # ============================================================
 # --- BOOT ---
 # ============================================================
