@@ -880,13 +880,15 @@ async def restart_cmd(client, message):
 # ============================================================
 # --- 11. CHATBOT (lowest priority) ---
 # ============================================================
-@app.on_message(filters.text & filters.group, group=3)
+@app.on_message(filters.text & filters.group, group=2)
 async def chatbot_reply(client, message):
-    await handle_chat(client, message)
+    # Humne message ke saath active_chats ki list bhi bhej di
+    await handle_chat(client, message, active_chats)
 
 @app.on_message(filters.sticker & filters.group, group=3)
 async def sticker_reply(client, message):
-    await handle_sticker(client, message)
+    # Yahan bhi active_chats bhej diya
+    await handle_sticker(client, message, active_chats)
 # ============================================================
 # --- BOOT ---
 # ============================================================
