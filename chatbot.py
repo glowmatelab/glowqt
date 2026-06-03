@@ -4,23 +4,16 @@ import asyncio
 from datetime import datetime
 from pyrogram import enums
 
-# ============================================================
-# --- CHATBOT CONFIG ---
-# ============================================================
 BOT_NAME_TRIGGERS = ["qt", "qttag", "qtbot", "qt bot"]
 
-USER_COOLDOWN = 15        # seconds
-MSG_TRIGGER_COUNT = 10     # har 10 msg ke baad reply
-CLEANUP_INTERVAL = 1800   # 30 min mein RAM cleanup
+USER_COOLDOWN = 15
+MSG_TRIGGER_COUNT = 10
+CLEANUP_INTERVAL = 1800
 
-# RAM optimized
-user_last_reply = {}      # user_id -> timestamp
-group_msg_counter = {}    # chat_id -> count
+user_last_reply = {}
+group_msg_counter = {}
 last_cleanup = 0.0
 
-# ============================================================
-# --- EMOJI SETS FOR EMOJI-ONLY REPLY ---
-# ============================================================
 REPLY_EMOJIS = [
     "😂", "🥺", "💕", "🔥", "😭", "✨", "🎀", "😏", "💀", "🌸",
     "😍", "🤣", "👀", "💯", "🥰", "😤", "🤩", "😳", "💫", "🌚",
@@ -29,9 +22,6 @@ REPLY_EMOJIS = [
     "👁️", "👄", "🫠", "🤌", "🫣", "🫢", "😶‍🌫️", "🥹", "😵‍💫", "🤯",
 ]
 
-# ============================================================
-# --- RESPONSE POOLS ---
-# ============================================================
 GREETINGS = {
     "triggers": ["hi", "hello", "hey", "hii", "hiii", "hiiii", "helo", "helloo", "heyy", "heyyy", "yo", "yoo", "sup", "wassup", "whatsup"],
     "responses": [
@@ -261,8 +251,11 @@ ALL_PATTERNS = [
 ]
 
 # ============================================================
-# --- HELPER FUNCTIONS ---
+# REPLY_CHANCE = 0.30 means 30% time reply, 70% time normal send
 # ============================================================
+REPLY_CHANCE = 0.30
+
+
 def is_emoji_only(text: str) -> bool:
     import unicodedata
     cleaned = text.strip()
@@ -300,26 +293,20 @@ def set_cooldown(user_id: int):
     user_last_reply[user_id] = datetime.now().timestamp()
 
 def _cleanup_memory():
-    """RAM cleanup - expired data delete karo"""
     global last_cleanup
     now = datetime.now().timestamp()
     if now - last_cleanup < CLEANUP_INTERVAL:
         return
-
     expired = [u for u, t in user_last_reply.items() if now - t > USER_COOLDOWN]
     for u in expired:
         del user_last_reply[u]
-
     if len(group_msg_counter) > 100:
         group_msg_counter.clear()
-
     last_cleanup = now
     if expired:
         print(f"[Cleanup] {len(expired)} expired cooldowns cleared")
 
-# ============================================================
-# --- STICKER HANDLER ---
-# ============================================================
+
 async def handle_sticker(client, message, active_chats):
     if not message.sticker:
         return
@@ -328,7 +315,6 @@ async def handle_sticker(client, message, active_chats):
 
     user_id = message.from_user.id if message.from_user else 0
 
-    # `active_chats` ab seedha function argument se pass ho raha hai
     if message.chat.id in active_chats:
         return
 
@@ -352,9 +338,7 @@ async def handle_sticker(client, message, active_chats):
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
 
-# ============================================================
-# --- MAIN TEXT HANDLER ---
-# ============================================================
+
 async def handle_chat(client, message, active_chats):
     if not message.from_user:
         return
@@ -378,7 +362,6 @@ async def handle_chat(client, message, active_chats):
     user_id = message.from_user.id
     text = message.text.strip()
 
-    # `active_chats` ab seedha function argument se check ho raha hai
     if chat_id in active_chats:
         return
 
@@ -394,24 +377,31 @@ async def handle_chat(client, message, active_chats):
     if not triggered:
         group_msg_counter[chat_id] = group_msg_counter.get(chat_id, 0) + 1
         if group_msg_counter[chat_id] >= MSG_TRIGGER_COUNT:
-            group_msg_counter[chat_id] = 0  # reset
+            group_msg_counter[chat_id] = 0
             triggered = True
         else:
-            return  # count hua par trigger nahi abhi
+            return
 
     if is_on_cooldown(user_id):
         return
     set_cooldown(user_id)
 
+    # --- Emoji only message ---
     if is_emoji_only(text):
         try:
             await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
             await asyncio.sleep(random.uniform(0.5, 1.2))
-            await message.reply(random.choice(REPLY_EMOJIS))
+            emoji_response = random.choice(REPLY_EMOJIS)
+            # 30% reply, 70% normal send
+            if random.random() < REPLY_CHANCE:
+                await message.reply(emoji_response)
+            else:
+                await client.send_message(chat_id, emoji_response)
         except Exception as e:
             print(f"[Emoji reply error]: {e}")
         return
 
+    # --- Normal text message ---
     response = find_response(text)
     if not response:
         response = random.choice(FALLBACK)
@@ -429,17 +419,16 @@ async def handle_chat(client, message, active_chats):
         final_response = response
 
     try:
-        await message.reply(final_response)
+        # 30% reply, 70% normal send
+        if random.random() < REPLY_CHANCE:
+            await message.reply(final_response)
+        else:
+            await client.send_message(chat_id, final_response)
     except Exception as e:
         print(f"[Chatbot reply error]: {e}")
 
-# ============================================================
-# --- ACTIVITY BOOSTER ---
-# ============================================================
+
 async def activity_booster(client, chat_id: int, active_chats, interval_minutes: int = 5):
-    """
-    Har X minute mein group mein ek random activity message bhejo.
-    """
     while True:
         await asyncio.sleep(interval_minutes * 60)
 
