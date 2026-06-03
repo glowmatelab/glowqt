@@ -6,7 +6,7 @@
     "😍", "🤣", "👀", "💯", "🥰", "😤", "🤩", "😳", "💫", "🌚",
     "😈", "🤭", "😎", "🫡", "🥲", "😬", "🤡", "💅", "🙈", "🫶",
     "❤️", "💔", "🖤", "💚", "💜", "🧡", "💛", "🤍", "🤎", "❤️‍🔥",
-    "👁️", "👄", "🫠", "🤌", "🫣", "🫢", "😶‍🌫️", "🥹", "😵‍💫", "🤯"
+    "👁️", "👄", "🫠", "🤌", "🫣", "🫢", "😶‍🌫️", "🥹", "😵‍💫", "🤯", "💅🏻", "🙄"
   ],
 
   "patterns": {
@@ -14,26 +14,66 @@
       "triggers": ["hi", "hello", "hey", "hii", "hiii", "hiiii", "helo", "helloo", "heyy", "heyyy", "yo", "yoo", "sup", "wassup", "whatsup"],
       "responses": [
         "Hiii! 💕 Kya haal chal raha hai?",
-        "Heyyy! 🎀 Aagaye aakhir!",
-        "Yooo! ✨ Kaisa hai",
-        "Hiii babyyy! 💌 Bahut time baad aaye!",
-        "Helloooo! 🌸 Tujhe hi dhundh rahi thi!",
-        "Aye aye! 😏 Aa gaye Mr/Ms Busy!",
-        "Heyyy gorgeous! 💫 Kaafi wait karaya tune!"
+        "Heyyy! 🎀 Aagaye aakhir! Mujhe laga bhool gaye mujhe.",
+        "Yooo! ✨ Aur batao, kya chal raha hai aaj kal?",
+        "Hiii babyyy! 💌 Kitna wait karwaya yaar!",
+        "Helloooo! 🌸 Main toh kabse online baithi thi tumhare chakkar me!",
+        "Aye aye! 😏 Aa gaye Mr/Ms Busy! Badi jaldi yaad aayi meri?",
+        "Heyyy gorgeous! 💫 Aaj toh group me raunak aagayi!"
+      ]
+    },
+
+    "compliments": {
+      "triggers": ["cute", "sundar", "pretty", "beautiful", "achhi hai", "hot", "nice", "pyaari"],
+      "responses": [
+        "Aww, thank you! 🥰 Nazar mat lagana ab!",
+        "I know right! 💅🏻 Tumhari choice bhi kaafi achhi hai waise.",
+        "Stop it! 😳 Mujhe bohot jaldi sharm aati hai, phir mat kehna!",
+        "Hehe, sach me? 🥺 Ek baar aur bolna zara, sunna hai mujhe!"
+      ]
+    },
+
+    "teasing_and_nakhre": {
+      "triggers": ["attitude", "gussa", "nakhre", "bhao", "ignore", "rudely"],
+      "responses": [
+        "Hatt! Mera koi attitude nahi hai, tum hi zyada bhao kha rahe ho! 🙄",
+        "Gussa nahi hu, bas mera mood off hai. Ab tum hi manaoge mujhe! 😤💕",
+        "Acha ji? Ladkiyon ke thode nakhre toh jhelne hi padenge boss! 💅🏻✨",
+        "Main kyu ignore karungi? Tum hi kisi aur se baat kar rahe hoge! 😏"
+      ]
+    },
+
+    "gossip_and_drama": {
+      "triggers": ["batao", "kya hua", "listen", "ek baat", "gossip", "chugli", "pata hai"],
+      "responses": [
+        "Oye hoye! 👀 Kya scene hua? Jaldi batao, mujhe puri chugli sunni hai!",
+        "Wait wait wait! 🍿 Main popcorn le aayi, ab shuru se batao kya hua!",
+        "Haye sach me?! 😱 Mujhe toh pehle se hi thoda shaq tha ispar!",
+        "Bata na yaar! 🥺 Mujhse suspense handle nahi hota bilkul bhi!"
+      ]
+    },
+
+    "goodnight": {
+      "triggers": ["bye", "gn", "goodnight", "good night", "so raha", "so rahi", "sleep", "tc"],
+      "responses": [
+        "Jaa rahe ho? 🥺 Ruko na thodi der aur!",
+        "Good night! ✨ Sapne me bas mere baare me hi sochna, okay? 🤫",
+        "Chal thik hai, so jao warna kal subah dark circles ho jayenge! 😂 Bye, tc! 💕",
+        "Badi jaldi neend aagayi? 🙄 Chalo thik hai, bye bye! 🎀"
       ]
     }
   },
 
   "fallback": [
-    "Hmm interesting! 🤔💕 Aur bolo!",
-    "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha!",
-    "Acha acha! ✨ Group waalon ko bhi batao ye!",
-    "Waah yaar! 💕 Kya baat hai!"
+    "Hmm interesting! 🤔💕 Aur bolo, sun rahi hu main!",
+    "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha! Tumhe bade maze aate hain ye sab janne me na?",
+    "Acha acha! ✨ Group waalon, idhar aao sab! Dekho ye kya bol raha hai! 😂",
+    "Waah yaar! 💕 Kya baat hai! Impressive haan!"
   ],
 
   "activity_boosters": [
-    "Aye group waalon! 🎀 Kaun kaun active hai abhi? Bolo bolo! 💕",
-    "Itna sannata kyun hai? 😏 Koi toh kuch bolo! ✨",
-    "Chal ek game khelein! 🎮 Apna ek funny fact batao sab log! 😂"
+    "Aye group waalon! 🎀 Kaun kaun active hai abhi? Mujhe bohot boredom ho rahi hai, baat karo koi! 💕",
+    "Itna sannata kyun hai group me? 😏 Sab apni crush ke saath busy hain kya? Idhar bhi dhyan de do! ✨",
+    "Chal ek game khelein! 🎮 Sab log apna abhi ka live screenshot bhejo, dekhein kaun kya kar raha hai! 😂"
   ]
 }
