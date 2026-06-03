@@ -1,0 +1,39 @@
+{
+  "bot_name_triggers": ["qt", "qttag", "qtbot", "qt bot"],
+
+  "reply_emojis": [
+    "😂", "🥺", "💕", "🔥", "😭", "✨", "🎀", "😏", "💀", "🌸",
+    "😍", "🤣", "👀", "💯", "🥰", "😤", "🤩", "😳", "💫", "🌚",
+    "😈", "🤭", "😎", "🫡", "🥲", "😬", "🤡", "💅", "🙈", "🫶",
+    "❤️", "💔", "🖤", "💚", "💜", "🧡", "💛", "🤍", "🤎", "❤️‍🔥",
+    "👁️", "👄", "🫠", "🤌", "🫣", "🫢", "😶‍🌫️", "🥹", "😵‍💫", "🤯"
+  ],
+
+  "patterns": {
+    "greetings": {
+      "triggers": ["hi", "hello", "hey", "hii", "hiii", "hiiii", "helo", "helloo", "heyy", "heyyy", "yo", "yoo", "sup", "wassup", "whatsup"],
+      "responses": [
+        "Hiii! 💕 Kya haal chal raha hai?",
+        "Heyyy! 🎀 Aagaye aakhir!",
+        "Yooo! ✨ Kaisa hai",
+        "Hiii babyyy! 💌 Bahut time baad aaye!",
+        "Helloooo! 🌸 Tujhe hi dhundh rahi thi!",
+        "Aye aye! 😏 Aa gaye Mr/Ms Busy!",
+        "Heyyy gorgeous! 💫 Kaafi wait karaya tune!"
+      ]
+    }
+  },
+
+  "fallback": [
+    "Hmm interesting! 🤔💕 Aur bolo!",
+    "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha!",
+    "Acha acha! ✨ Group waalon ko bhi batao ye!",
+    "Waah yaar! 💕 Kya baat hai!"
+  ],
+
+  "activity_boosters": [
+    "Aye group waalon! 🎀 Kaun kaun active hai abhi? Bolo bolo! 💕",
+    "Itna sannata kyun hai? 😏 Koi toh kuch bolo! ✨",
+    "Chal ek game khelein! 🎮 Apna ek funny fact batao sab log! 😂"
+  ]
+}
