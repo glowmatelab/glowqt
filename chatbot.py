@@ -1,59 +1,28 @@
 import random
 import re
 import asyncio
+import json
 from datetime import datetime
 from pyrogram import enums
 
-BOT_NAME_TRIGGERS = ["qt", "qttag", "qtbot", "qt bot"]
+with open("responses.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+BOT_NAME_TRIGGERS = data["bot_name_triggers"]
+REPLY_EMOJIS = data["reply_emojis"]
+FALLBACK = data["fallback"]
+ACTIVITY_BOOSTERS = data["activity_boosters"]
+ALL_PATTERNS = list(data["patterns"].values())
 
 USER_COOLDOWN = 15
 MSG_TRIGGER_COUNT = 10
 CLEANUP_INTERVAL = 1800
 REPLY_CHANCE = 0.30
 
-# Memory Storage
 user_last_reply = {}
 group_msg_counter = {}
-group_last_activity = {}  # Tracks when a group last sent a message
+group_last_activity = {}
 last_cleanup = 0.0
-
-REPLY_EMOJIS = [
-    "😂", "🥺", "💕", "🔥", "😭", "✨", "🎀", "😏", "💀", "🌸",
-    "😍", "🤣", "👀", "💯", "🥰", "😤", "🤩", "😳", "💫", "🌚",
-    "😈", "🤭", "😎", "🫡", "🥲", "😬", "🤡", "💅", "🙈", "🫶",
-    "❤️", "💔", "🖤", "💚", "💜", "🧡", "💛", "🤍", "🤎", "❤️‍🔥",
-    "👁️", "👄", "🫠", "🤌", "🫣", "🫢", "😶‍🌫️", "🥹", "😵‍💫", "🤯",
-]
-
-# Note: Added {name} placeholder handling seamlessly inside responses dynamically
-GREETINGS = {
-    "triggers": ["hi", "hello", "hey", "hii", "hiii", "hiiii", "helo", "helloo", "heyy", "heyyy", "yo", "yoo", "sup", "wassup", "whatsup"],
-    "responses": [
-        "Hiii! 💕 Kya haal chal raha hai?",
-        "Heyyy! 🎀 Aagaye aakhir!",
-        "Yooo! ✨ Kaisa hai",
-        "Hiii babyyy! 💌 Bahut time baad aaye!",
-        "Helloooo! 🌸 Tujhe hi dhundh rahi thi!",
-        "Aye aye! 😏 Aa gaye Mr/Ms Busy!",
-        "Heyyy gorgeous! 💫 Kaafi wait karaya tune!",
-    ]
-}
-# ... (Keep your other dictionaries GN_CHAT, GM_CHAT, etc. as they are)
-
-FALLBACK = [
-    "Hmm interesting! 🤔💕 Aur bolo!",
-    "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha!",
-    "Acha acha! ✨ Group waalon ko bhi batao ye!",
-    "Waah yaar! 💕 Kya baat hai!",
-]
-
-ACTIVITY_BOOSTERS = [
-    "Aye group waalon! 🎀 Kaun kaun active hai abhi? Bolo bolo! 💕",
-    "Itna sannata kyun hai? 😏 Koi toh kuch bolo! ✨",
-    "Chal ek game khelein! 🎮 Apna ek funny fact batao sab log! 😂",
-]
-
-ALL_PATTERNS = [GREETINGS, FIXED_FALLBACK]  # Include all your pattern dicts here
 
 
 def is_emoji_only(text: str) -> bool:
@@ -102,18 +71,16 @@ def _cleanup_memory():
     now = datetime.now().timestamp()
     if now - last_cleanup < CLEANUP_INTERVAL:
         return
-    
-    # Precise cleanup
+
     expired_users = [u for u, t in user_last_reply.items() if now - t > USER_COOLDOWN]
     for u in expired_users:
         del user_last_reply[u]
-        
-    # Drop stale group counters if inactive for over 2 hours to avoid unbounded dict growth
+
     stale_groups = [g for g, t in group_last_activity.items() if now - t > 7200]
     for g in stale_groups:
         group_msg_counter.pop(g, None)
         group_last_activity.pop(g, None)
-        
+
     last_cleanup = now
 
 
@@ -166,13 +133,12 @@ async def handle_chat(client, message, active_chats):
 
     _cleanup_memory()
     now = datetime.now().timestamp()
-    group_last_activity[chat_id] = now  # Record activity update
+    group_last_activity[chat_id] = now
 
-    # Verify if it's a direct reply to the bot
     is_reply_to_bot = (
-        message.reply_to_message and 
-        message.reply_to_message.from_user and 
-        bot_id and 
+        message.reply_to_message and
+        message.reply_to_message.from_user and
+        bot_id and
         message.reply_to_message.from_user.id == bot_id
     )
 
@@ -190,13 +156,11 @@ async def handle_chat(client, message, active_chats):
         return
     set_cooldown(user_id)
 
-    # --- Case 1: Emoji only message ---
     if is_emoji_only(text):
         try:
             await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
             await asyncio.sleep(random.uniform(0.5, 1.2))
             emoji_response = random.choice(REPLY_EMOJIS)
-            
             if random.random() < REPLY_CHANCE:
                 await message.reply(emoji_response)
             else:
@@ -205,13 +169,10 @@ async def handle_chat(client, message, active_chats):
             print(f"[Emoji reply error]: {e}")
         return
 
-    # --- Case 2: Normal text message ---
     response = find_response(text) or random.choice(FALLBACK)
 
-    # Context-aware structural string updates for user's name
     name = message.from_user.first_name or "yaar"
     if name.lower() not in response.lower() and random.random() > 0.4:
-        # Prepend cleanly instead of breaking emoji chains at the end
         final_response = f"{name}, {response}"
     else:
         final_response = response
@@ -219,7 +180,6 @@ async def handle_chat(client, message, active_chats):
     try:
         await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
         await asyncio.sleep(random.uniform(0.8, 2.0))
-        
         if random.random() < REPLY_CHANCE:
             await message.reply(final_response)
         else:
@@ -228,12 +188,7 @@ async def handle_chat(client, message, active_chats):
         print(f"[Chatbot reply error]: {e}")
 
 
-# Centralized single background task loop for activity boosting
 async def global_activity_booster(client, registered_chats: list, active_chats: set, interval_minutes: int = 5):
-    """
-    Pass your collection of group chat IDs to `registered_chats`.
-    This single loop scales cleanly without spinning up tasks dynamically per group chat.
-    """
     while True:
         await asyncio.sleep(interval_minutes * 60)
         for chat_id in registered_chats:
@@ -242,6 +197,6 @@ async def global_activity_booster(client, registered_chats: list, active_chats: 
             try:
                 msg = random.choice(ACTIVITY_BOOSTERS)
                 await client.send_message(chat_id, msg)
-                await asyncio.sleep(0.5)  # Slight buffer delay to dodge Telegram flood-waits
+                await asyncio.sleep(0.5)
             except Exception as e:
                 print(f"[Activity booster error] chat {chat_id}: {e}")
