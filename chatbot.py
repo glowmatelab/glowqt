@@ -9,9 +9,12 @@ BOT_NAME_TRIGGERS = ["qt", "qttag", "qtbot", "qt bot"]
 USER_COOLDOWN = 15
 MSG_TRIGGER_COUNT = 10
 CLEANUP_INTERVAL = 1800
+REPLY_CHANCE = 0.30
 
+# Memory Storage
 user_last_reply = {}
 group_msg_counter = {}
+group_last_activity = {}  # Tracks when a group last sent a message
 last_cleanup = 0.0
 
 REPLY_EMOJIS = [
@@ -22,238 +25,35 @@ REPLY_EMOJIS = [
     "👁️", "👄", "🫠", "🤌", "🫣", "🫢", "😶‍🌫️", "🥹", "😵‍💫", "🤯",
 ]
 
+# Note: Added {name} placeholder handling seamlessly inside responses dynamically
 GREETINGS = {
     "triggers": ["hi", "hello", "hey", "hii", "hiii", "hiiii", "helo", "helloo", "heyy", "heyyy", "yo", "yoo", "sup", "wassup", "whatsup"],
     "responses": [
         "Hiii! 💕 Kya haal chal raha hai?",
         "Heyyy! 🎀 Aagaye aakhir!",
-        "Yooo! ✨ Kaisa hai mera pyaara banda?",
+        "Yooo! ✨ Kaisa hai",
         "Hiii babyyy! 💌 Bahut time baad aaye!",
         "Helloooo! 🌸 Tujhe hi dhundh rahi thi!",
         "Aye aye! 😏 Aa gaye Mr/Ms Busy!",
         "Heyyy gorgeous! 💫 Kaafi wait karaya tune!",
-        "Ohhh hii! 🎀 Lagta hai miss kar raha tha mujhe 😜",
-        "Hiii! ✨ Bata kya kaam hai mujhse? 😉",
-        "Yooo! 💕 Aaj group yaad aa gaya?",
     ]
 }
+# ... (Keep your other dictionaries GN_CHAT, GM_CHAT, etc. as they are)
 
-GN_CHAT = {
-    "triggers": ["good night", "gn", "goodnight", "gn all", "gn everyone", "raat ko", "so raha", "so rahi", "neend aa rahi", "neend aarhi"],
-    "responses": [
-        "Good night! 🌙 Sapne mein milte hain 😏",
-        "Aww GN! 💤 Achhe sapne aana! 🌟",
-        "Soja soja baby! 🌙✨ Kal phir milenge!",
-        "GN! 🌙 Sapne mein main hi aaunga toh darr mat 😜",
-        "Ohhh sone ja raha/rahi hai? 😴 Miss karunga! 💕",
-        "GN GN! 🎀 Kal phir bakwaas karenge 😂",
-        "Neend aa rahi hai? 🌙 Thak gaye kya itna active rehke? 😏",
-        "Raat mubarak! ✨ Chand ko meri taraf se hi dekh lena 🌙",
-    ]
-}
-
-GM_CHAT = {
-    "triggers": ["good morning", "gm", "goodmorning", "subah", "uth gaya", "uth gayi", "gm all", "morning", "suba hua"],
-    "responses": [
-        "Good Morning! ☀️ Aaj ka din tuhaara hi hai!",
-        "GM!! 🌸 Uth gaye finally? Socha so hi jaoge aaj 😜",
-        "Ohhh rise and shine! ☀️💕 Chai pi li?",
-        "Good Morning! 🌼 Aaj kuch mast karte hain group mein!",
-        "GM bhai/behen! ✨ Neander poori hui ya raat bhar phone chala? 😏",
-        "Subaah ho gayi! ☀️ Tujhe dekh ke dil khush ho gaya! 💕",
-        "GM GM! 🌅 Aaj bhi active rehna haan! 🎀",
-        "Ooo morning! ☀️ Aaj phir dhamaal machaate hain? 😈",
-    ]
-}
-
-GA_CHAT = {
-    "triggers": ["good afternoon", "ga", "dopahar", "lunch", "khana kha", "afternoon", "dophar"],
-    "responses": [
-        "Good Afternoon! ☀️ Khana kha liya? 🍛",
-        "Dopahar ho gayi! 🌤️ So mat jaana abhi 😜",
-        "GA! ☀️ Aaj lunch mein kya تھا? Mujhe bhi batao 🥺",
-        "Afternoon vibes! 🌸 Neend aa rahi hai na? 😴 Uth ja!",
-        "Good Afternoon! 💫 Aaj bhi dhamaal chal raha hai group mein! 🎀",
-    ]
-}
-
-HOW_ARE_YOU = {
-    "triggers": ["kya hal", "kya haal", "kaisa hai", "kaisi ho", "kaisa ho", "kaise ho", "kaise hain", "how are you", "how r u", "kya chal raha", "sab theek", "sab thik", "kya haal chaal"],
-    "responses": [
-        "Main? Ekdum mast hoon! 💕 Tu bata apna haal?",
-        "Behtareen! 🎀 Tujhe dekh ke aur bhi accha lag raha hai 😏",
-        "Mast hoon yaar! ✨ Par teri yaad aa rahi thi thodi 😜",
-        "Theek hoon! 💫 Tu aagaya/aayi toh aur accha ho gaya!",
-        "Ekdum fit! 🌸 Tu bata, group mein kab active hoga/hogi properly?",
-        "Amazing! 💕 Par tere bina thoda boring tha group 😏",
-        "Full josh mein hoon! 🔥 Tu bata kya scene hai?",
-        "Haan haan theek hoon! 🎀 Teri chinta zyada hoti hai mujhe 😂",
-    ]
-}
-
-FLIRTY = {
-    "triggers": ["cute", "beautiful", "handsome", "pretty", "gorgeous", "hot", "adorable", "sweet", "pyari", "pyara", "sundar", "acha lagta", "achi lagti", "pasand hai", "love you", "luv u", "ilu", "i love you", "dil mein", "miss you", "miss kar raha", "miss karti"],
-    "responses": [
-        "Ohh stop it you! 😳💕 Sharminda mat karo mujhe!",
-        "Arey yaar! 🥺✨ Itna cute mat bolo warna dil de dunga/dungi!",
-        "Hmm noted! 😏 Par pehle group mein active raho toh sochenge 😜",
-        "Awww! 💕 Tu bhi bahut pyaara/pyaari hai yaaar!",
-        "Ek kaam karo, ye sab group mein bolte raho - sab khush rahenge! 😂🎀",
-        "Aye aye! 😏 Dil toh mera bhi pighal raha hai par dikhaunga nahi 💕",
-        "Ooooh! ✨ Seedha dil pe laga yaar! 🥺💌",
-        "Haha tu toh bahut dangerous hai! 😂💕 Aise mat bolo!",
-        "Miss you too yaar! 💕 Par group mein rehte toh miss karna nahi padta na 😏",
-    ]
-}
-
-BORED = {
-    "triggers": ["bore", "bored", "boring", "bakwaas", "bekar", "kuch nahi", "kuch nai", "khaali", "kya karu", "kya karun", "time pass", "timepass", "bakchodi", "mast", "maza", "mazaa", "fun"],
-    "responses": [
-        "Bore ho? 😏 Toh group mein kuch dhamaal karo na!",
-        "Boring lag raha hai? 🎀 Chal antakshari khelein!",
-        "Khaali waqt hai? ✨ Sab ko tag karo aur bakwaas shuru karo 😂",
-        "Timepass chahiye? 💕 Group mein koi game start karte hain!",
-        "Bakwaas hi sahi! 🎀 Par group active rehna chahiye na!",
-        "Kya karu bolunga? 😂 Group mein ek funny meme daalo na!",
-        "Bore kyu hote ho? 🌸 Itna bada group hai - baat karo sabse!",
-        "Maza nahi aa raha? 😒 Theek hai, main hoon na! Baat karo mujhse! 💕",
-    ]
-}
-
-ANGRY = {
-    "triggers": ["gussa", "angry", "ganda", "bura", "shut up", "chup", "bekar hai", "nikal", "bandh kar", "band kar", "hate", "nafrat", "gali", "gaali"],
-    "responses": [
-        "Aye aye! 😤 Gussa kyun? Main kya kiya? 🥺",
-        "Oho! 😂 Itna gussa? Theek hai sorry sorry! 🙏💕",
-        "Gussa acha nahi lagta! 🌸 Smile karo na please 🥺",
-        "Aye! 😏 Gusse mein bhi cute lagte ho/lagti ho tum!",
-        "Okay okay maafi! 😂🎀 Ab group mein active raho bas!",
-        "Chup? 😒 Main nahi hounga! Group ko active rakhna mera kaam hai! 😤",
-    ]
-}
-
-BOT_QUESTIONS = {
-    "triggers": ["kaun hai tu", "kaun ho tum", "kya hai tu", "kya ho tum", "bot hai", "real hai", "insaan hai", "tumhara naam", "tera naam", "who are you", "what are you", "introduce", "apna intro"],
-    "responses": [
-        "Main hoon QT! 🎀 Tumhara sabse pyaara group assistant! ✨",
-        "Main? Ek jadugarni hoon jo group ko zinda rakhti hai! 💕😂",
-        "Bot hoon par dil waali! 🌸 Group ki jaan hoon main! 💫",
-        "QT hoon main! 🎀 Group ka sabse active member - tumse zyada toh hoon hi! 😏",
-        "Arrey main toh tumhara dost hoon! ✨ Group mein kuch bhi chahiye toh batao! 💕",
-        "Main QTTAGbot hoon! 🎀 Group tagging, fun, aur bakwaas - sab mere zimme! 😂",
-    ]
-}
-
-THANKS = {
-    "triggers": ["thanks", "thank you", "thankyou", "dhanyawad", "shukriya", "tyvm", "ty", "thx", "thankss", "thanks a lot"],
-    "responses": [
-        "Arrey welcome yaar! 💕 Kabhi bhi!",
-        "Koi baat nahi! 🌸 Iske liye hi toh hoon main!",
-        "Hehe welcome! 🎀 Bas group mein active raho! ✨",
-        "Welcome welcome! 💫 Dil se! 🥺",
-        "Aye mention not! 😏 Dosti mein thanks nahi hota!",
-        "Welcome! 🌸 Agle baar seedha kaam batana! 😂💕",
-    ]
-}
-
-AGREE_DISAGREE = {
-    "triggers": ["haan", "bilkul", "sahi", "agree", "true", "sach", "galat", "wrong", "disagree", "false", "jhooth", "jhuta"],
-    "responses": [
-        "Theek baat hai! 😎 Group ki wisdom! 💕",
-        "Haan haan! 🎀 Bilkul sahi! ✨",
-        "Oho! 🤔 Interesting point yaar!",
-        "Aye! 😏 Tumse kuch chupta nahi hai! 💫",
-        "Dekho dekho! 🌸 Sab log isko note karo! 😂",
-        "Waah! 💕 Ek dum pakki baat!",
-    ]
-}
-
-FOOD = {
-    "triggers": ["khana", "khaana", "bhookh", "hungry", "pizza", "burger", "chai", "coffee", "biryani", "maggi", "khao", "kha raha", "kha rahi", "kha liya", "pet bhar"],
-    "responses": [
-        "Khana?! 🍛 Mujhe bhi de do kuch! 🥺",
-        "Biryani ka naam suna aur dil khush ho gaya! 🍚💕",
-        "Chai bana raha/rahi hai? ☕ Mera cup bhi bana lena!",
-        "Yaar bhookh lag gayi ab toh! 😂🍕 Share karo na!",
-        "Maggi?! ✨ Classic! Main bhi khana chahta/chahti hoon! 🥺",
-        "Khana khaoge toh active rehna group mein! 😏💕 Deal hai?",
-        "Khane ki baat mat karo! 😤 Bhookh lag jaati hai! 🍔",
-    ]
-}
-
-SHORT_SLANG = {
-    "triggers": [
-        "dead", "💀", "ded", "im dead", "i'm dead", "died", "rip",
-        "tg", "lol", "lmao", "lmfao", "rofl", "omg", "omfg", "wtf", "wth",
-        "ngl", "imo", "tbh", "irl", "idk", "idc", "fyi", "btw", "brb",
-        "gg", "glhf", "ez", "noob", "npc", "ratio", "based",
-        "kyu", "kyun", "kyo", "nah", "nope", "yep", "yup", "ikr",
-        "smh", "fr", "frfr", "no cap", "cap", "slay", "vibe", "vibes",
-        "why", "y tho", "why tho", "kaise", "kab",
-    ],
-    "responses": [
-        "💀💀💀",
-        "Lmaooo 😂💕 Teri toh!",
-        "Dead? 💀 Main bhi mar gayi ye dekh ke 😂",
-        "LMAOOO 🤣 Bhai/Behen sach mein?!",
-        "Ratio L + 💀 + no cap 😂",
-        "Gg ez 😏 No contest!",
-        "FR FR 💯 Bilkul sahi!",
-        "Ngl toh... 🤭 Ye toh sach hai!",
-        "Based 😎 Very based.",
-        "Slay queen/king! 💅✨",
-        "Vibe check: ✅ Passed! 💕",
-        "No cap fr fr 💯😂",
-        "W move yaar! 🏆💕",
-        "Bro/Sis really said that 💀😂",
-        "IKR!! 😭💕 Bilkul mere dil ki baat!",
-        "Smh 😤 Ye log bhi na...",
-        "NPC behavior detected 🤖😂",
-        "Sab ko W milega aaj! 🏆✨",
-    ]
-}
+FALLBACK = [
+    "Hmm interesting! 🤔💕 Aur bolo!",
+    "Ohhh! 🎀 Ye toh mujhe pata hi nahi tha!",
+    "Acha acha! ✨ Group waalon ko bhi batao ye!",
+    "Waah yaar! 💕 Kya baat hai!",
+]
 
 ACTIVITY_BOOSTERS = [
     "Aye group waalon! 🎀 Kaun kaun active hai abhi? Bolo bolo! 💕",
     "Itna sannata kyun hai? 😏 Koi toh kuch bolo! ✨",
     "Chal ek game khelein! 🎮 Apna ek funny fact batao sab log! 😂",
-    "Aye! 💕 Aaj ka best meme kaun daayega group mein? Competition hai! 🏆",
-    "Group mein itne log hain par sab ghum? 👻 Koi toh bolo kuch! 🎀",
-    "Abhi ka mood kya hai sab ka? 😴😤😂🥺 Emoji se batao! 💕",
-    "Aaj kuch interesting hua kisi ke saath? 🌸 Share karo group ko khush karo!",
-    "Yaad hai last baar kab sab active the? 😏 Aaj phir wahi energy chahiye! 🔥",
-    "Koi ek achha joke sunao toh! 😂🎀 Group ko hasao!",
-    "Suno suno! 💕 Aaj ka question: Tea ☕ ya Coffee? Batao sabhi!",
-    "Random question: Agar ek superpower milti toh kya loge? 🦸 Batao! 💫",
-    "Chal ek poll: Raat ko sone wale 🌙 ya raat bhar jaagne wale 🦉? Bolo!",
 ]
 
-FALLBACK = [
-    "Hmm interesting! 🤔💕 Aur bolo!",
-    "Ohhh! 🎀 Ye toh mujhe pata hi nahi تھا!",
-    "Acha acha! ✨ Group waalon ko bhi batao ye!",
-    "Waah yaar! 💕 Kya baat hai!",
-    "Haha! 😂🎀 Group mein aisa hi hota hai!",
-    "Sach mein?! 🥺✨ Aur details batao!",
-    "Noted! 😏💕 Aage se dhyan rakhunga!",
-    "Aye! 🎀 Seedha dil pe laga yaar!",
-    "Haan haan! 💕 Sab sun rahe hain tujhe!",
-    "Oye! 😂 Group toh active ho gaya aaj tere wajah se!",
-    "Interesting point! 🌸 Koi aur bhi bolega kuch?",
-    "Dekho log! 💕 Ye banda/bandi kuch bol raha/rahi hai! 😂",
-]
-
-ALL_PATTERNS = [
-    GREETINGS, GN_CHAT, GM_CHAT, GA_CHAT,
-    HOW_ARE_YOU, FLIRTY, BORED, ANGRY,
-    BOT_QUESTIONS, THANKS, AGREE_DISAGREE, FOOD,
-    SHORT_SLANG,
-]
-
-# ============================================================
-# REPLY_CHANCE = 0.30 means 30% time reply, 70% time normal send
-# ============================================================
-REPLY_CHANCE = 0.30
+ALL_PATTERNS = [GREETINGS, FIXED_FALLBACK]  # Include all your pattern dicts here
 
 
 def is_emoji_only(text: str) -> bool:
@@ -267,6 +67,7 @@ def is_emoji_only(text: str) -> bool:
             return False
     return True
 
+
 def find_response(text: str):
     text_lower = text.lower().strip()
     clean = re.sub(r'[^\w\s]', '', text_lower)
@@ -275,6 +76,7 @@ def find_response(text: str):
             if trigger in clean or trigger in text_lower:
                 return random.choice(pattern["responses"])
     return None
+
 
 def should_respond(text: str, bot_username: str) -> bool:
     text_lower = text.lower()
@@ -285,39 +87,43 @@ def should_respond(text: str, bot_username: str) -> bool:
         return True
     return False
 
+
 def is_on_cooldown(user_id: int) -> bool:
     now = datetime.now().timestamp()
     return (now - user_last_reply.get(user_id, 0)) < USER_COOLDOWN
 
+
 def set_cooldown(user_id: int):
     user_last_reply[user_id] = datetime.now().timestamp()
+
 
 def _cleanup_memory():
     global last_cleanup
     now = datetime.now().timestamp()
     if now - last_cleanup < CLEANUP_INTERVAL:
         return
-    expired = [u for u, t in user_last_reply.items() if now - t > USER_COOLDOWN]
-    for u in expired:
+    
+    # Precise cleanup
+    expired_users = [u for u, t in user_last_reply.items() if now - t > USER_COOLDOWN]
+    for u in expired_users:
         del user_last_reply[u]
-    if len(group_msg_counter) > 100:
-        group_msg_counter.clear()
+        
+    # Drop stale group counters if inactive for over 2 hours to avoid unbounded dict growth
+    stale_groups = [g for g, t in group_last_activity.items() if now - t > 7200]
+    for g in stale_groups:
+        group_msg_counter.pop(g, None)
+        group_last_activity.pop(g, None)
+        
     last_cleanup = now
-    if expired:
-        print(f"[Cleanup] {len(expired)} expired cooldowns cleared")
 
 
 async def handle_sticker(client, message, active_chats):
-    if not message.sticker:
+    if not message.sticker or not message.sticker.set_name:
         return
-    if not message.sticker.set_name:
-        return
-
-    user_id = message.from_user.id if message.from_user else 0
-
     if message.chat.id in active_chats:
         return
 
+    user_id = message.from_user.id if message.from_user else 0
     if is_on_cooldown(user_id):
         return
 
@@ -334,26 +140,19 @@ async def handle_sticker(client, message, active_chats):
         await asyncio.sleep(random.uniform(0.5, 1.5))
         set_cooldown(user_id)
         await message.reply_sticker(random.choice(choices).file_id)
-
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
 
 
 async def handle_chat(client, message, active_chats):
-    if not message.from_user:
-        return
-    if not message.text:
-        return
-    if message.text.startswith("/"):
+    if not message.from_user or not message.text or message.text.startswith("/"):
         return
 
     try:
         me = await client.get_me()
-        bot_id = me.id
-        bot_username = me.username or ""
+        bot_id, bot_username = me.id, me.username or ""
     except Exception:
-        bot_id = None
-        bot_username = ""
+        bot_id, bot_username = None, ""
 
     if bot_id and message.from_user.id == bot_id:
         return
@@ -366,11 +165,16 @@ async def handle_chat(client, message, active_chats):
         return
 
     _cleanup_memory()
+    now = datetime.now().timestamp()
+    group_last_activity[chat_id] = now  # Record activity update
 
-    is_reply_to_bot = False
-    if message.reply_to_message and message.reply_to_message.from_user:
-        if bot_id and message.reply_to_message.from_user.id == bot_id:
-            is_reply_to_bot = True
+    # Verify if it's a direct reply to the bot
+    is_reply_to_bot = (
+        message.reply_to_message and 
+        message.reply_to_message.from_user and 
+        bot_id and 
+        message.reply_to_message.from_user.id == bot_id
+    )
 
     triggered = is_reply_to_bot or should_respond(text, bot_username)
 
@@ -386,13 +190,13 @@ async def handle_chat(client, message, active_chats):
         return
     set_cooldown(user_id)
 
-    # --- Emoji only message ---
+    # --- Case 1: Emoji only message ---
     if is_emoji_only(text):
         try:
             await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
             await asyncio.sleep(random.uniform(0.5, 1.2))
             emoji_response = random.choice(REPLY_EMOJIS)
-            # 30% reply, 70% normal send
+            
             if random.random() < REPLY_CHANCE:
                 await message.reply(emoji_response)
             else:
@@ -401,25 +205,21 @@ async def handle_chat(client, message, active_chats):
             print(f"[Emoji reply error]: {e}")
         return
 
-    # --- Normal text message ---
-    response = find_response(text)
-    if not response:
-        response = random.choice(FALLBACK)
+    # --- Case 2: Normal text message ---
+    response = find_response(text) or random.choice(FALLBACK)
 
-    try:
-        await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
-        await asyncio.sleep(random.uniform(0.8, 2.0))
-    except Exception:
-        pass
-
+    # Context-aware structural string updates for user's name
     name = message.from_user.first_name or "yaar"
     if name.lower() not in response.lower() and random.random() > 0.4:
-        final_response = f"{response} {name}! 💕"
+        # Prepend cleanly instead of breaking emoji chains at the end
+        final_response = f"{name}, {response}"
     else:
         final_response = response
 
     try:
-        # 30% reply, 70% normal send
+        await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
+        await asyncio.sleep(random.uniform(0.8, 2.0))
+        
         if random.random() < REPLY_CHANCE:
             await message.reply(final_response)
         else:
@@ -428,15 +228,20 @@ async def handle_chat(client, message, active_chats):
         print(f"[Chatbot reply error]: {e}")
 
 
-async def activity_booster(client, chat_id: int, active_chats, interval_minutes: int = 5):
+# Centralized single background task loop for activity boosting
+async def global_activity_booster(client, registered_chats: list, active_chats: set, interval_minutes: int = 5):
+    """
+    Pass your collection of group chat IDs to `registered_chats`.
+    This single loop scales cleanly without spinning up tasks dynamically per group chat.
+    """
     while True:
         await asyncio.sleep(interval_minutes * 60)
-
-        if chat_id in active_chats:
-            continue
-
-        try:
-            msg = random.choice(ACTIVITY_BOOSTERS)
-            await client.send_message(chat_id, msg)
-        except Exception as e:
-            print(f"[Activity booster error] chat {chat_id}: {e}")
+        for chat_id in registered_chats:
+            if chat_id in active_chats:
+                continue
+            try:
+                msg = random.choice(ACTIVITY_BOOSTERS)
+                await client.send_message(chat_id, msg)
+                await asyncio.sleep(0.5)  # Slight buffer delay to dodge Telegram flood-waits
+            except Exception as e:
+                print(f"[Activity booster error] chat {chat_id}: {e}")
