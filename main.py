@@ -6,16 +6,16 @@ import re
 import sys
 from chatbot import handle_chat, handle_sticker
 from pyrogram import Client, filters, enums
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMembersFilter, ParseMode
-from pyrogram.errors import FloodWait, NetworkMigrate, PhoneMigrate
+from pyrogram.errors import FloodWait
 from pyrogram.errors import RPCError as PyroConnectionError
 from datetime import datetime
 from flask import Flask
 from threading import Thread
 
 # ============================================================
-# --- FLASK (Render alive rakhne ke liye) ---
+# --- FLASK ---
 # ============================================================
 flask_app = Flask(__name__)
 
@@ -32,7 +32,7 @@ def run_flask():
 Thread(target=run_flask, daemon=True).start()
 
 # ============================================================
-# --- CONFIG (Environment Variables) ---
+# --- CONFIG ---
 # ============================================================
 API_ID    = int(os.environ.get("API_ID"))
 API_HASH  = os.environ.get("API_HASH")
@@ -51,7 +51,7 @@ app = Client(
 # ============================================================
 # --- UNIFIED ACTIVE CHATS ---
 # ============================================================
-active_chats = {}  # chat_id -> tag type string
+active_chats = {}
 
 # ============================================================
 # --- DATABASE LOGIC ---
@@ -66,7 +66,6 @@ def _default_data():
         "custom_messages": {},
         "settings": {},
         "afk_users": {},
-        "daily_couples": {}
     }
 
 def load_data():
@@ -97,17 +96,6 @@ async def load_data_safe():
 async def save_data_safe(data):
     async with data_lock:
         save_data(data)
-
-# ============================================================
-# --- CHATBOT RESPONSES ---
-# ============================================================
-exact_responses = {
-    "hello": ["Hii babe! 💕 Kya haal?", "Helloooo! 🌸", "Hey sweetie! 💫"],
-    "hi":    ["Yoooo! 🎀 Wassup?", "Hii there! ✨", "Hiiii babyyy! 💌"],
-    "hey":   ["Heyyy! 💕 Kaisa hai?", "Hey gorgeous! 🌸", "Yooo! ✨"],
-    "qt":    ["Haan! 🎀 Main sun rahi hoon! 💕 Bol na!", "Hanji! ✨ Kya batt hai?", "Haan babe! 💫"],
-    "bye":   ["Bye bye! 👋💕 Jaldi aio!", "Take care! 🌸✨", "See you soon! 💫🎀"],
-}
 
 # ============================================================
 # --- GM / GA / GN MESSAGES ---
@@ -247,7 +235,7 @@ async def safe_send(chat_id, text, replied=None, retries=3):
     return False
 
 # ============================================================
-# --- CORE EMOJI TAG ENGINE (5 batch - fast) ---
+# --- CORE EMOJI TAG ENGINE (5 batch) ---
 # ============================================================
 async def process_members(chat_id, members, text=None, replied=None):
     tagged_members = 0
@@ -280,7 +268,7 @@ async def process_members(chat_id, members, text=None, replied=None):
             if not success:
                 active_chats.pop(chat_id, None)
                 try:
-                    await app.send_message(chat_id, "⚠️ Network error aayi, tagging rok di. Dobara try karo.")
+                    await app.send_message(chat_id, "⚠️ Network error aayi, tagging rok di.")
                 except Exception:
                     pass
                 return tagged_members
@@ -300,7 +288,7 @@ async def process_members(chat_id, members, text=None, replied=None):
     return tagged_members
 
 # ============================================================
-# --- SINGLE TAG ENGINE (1 tag - human jaisa) ---
+# --- SINGLE TAG ENGINE (human style) ---
 # ============================================================
 async def process_members_single(chat_id, members, text=None, replied=None):
     tagged_members = 0
@@ -394,7 +382,7 @@ async def safe_task(coro, chat_id, tag_type):
         print(f"[Task crashed] {tag_type} in {chat_id}: {e}")
         active_chats.pop(chat_id, None)
         try:
-            await app.send_message(chat_id, f"⚠️ {tag_type} tagging crash ho gayi. Network check karo.")
+            await app.send_message(chat_id, f"⚠️ {tag_type} tagging crash ho gayi.")
         except Exception:
             pass
 
@@ -437,8 +425,7 @@ async def start(client, message):
         "┣ 👑 Admin Power Tools\n"
         "┣ 🌙 AFK Status System\n"
         "┣ 🌅 GM/GA/GN Tagging\n"
-        "┣ 🐢 Human-style Single Tag\n"
-        "┗ 💕 Couple Matcher (/couple)\n\n"
+        "┗ 🐢 Human-style Single Tag\n\n"
         "**Niche button se mujhe add karein!**"
     )
     buttons = InlineKeyboardMarkup([[
@@ -469,8 +456,7 @@ async def help_cmd(client, message):
         "┣ `/gatag` → Good Afternoon Tag 🌤️\n"
         "┣ `/gntag` → Good Night Tag 🌙\n"
         "┗ `/stopall` → Stop Greeting Tag 🛑\n\n"
-        "🎭 **SOCIAL & FUN**\n"
-        "┣ `/couple` → Match Maker 💞\n"
+        "🎭 **SOCIAL**\n"
         "┣ `/afk [reason]` → Away Status 🌙\n"
         "┗ `/back` → Back from AFK 💌\n\n"
         "⚙️ **SYSTEM ADMIN**\n"
@@ -533,7 +519,7 @@ async def check_afk(client, message):
             )
 
 # ============================================================
-# --- 4. TAGGING ENGINES (etag/mtag/atag/vtag) ---
+# --- 4. TAGGING ENGINES ---
 # ============================================================
 @app.on_message(filters.command(["etag", "mtag", "atag", "vtag"]) & filters.group)
 async def unified_tagger(client, message):
@@ -621,7 +607,8 @@ async def tag_all_users(client, message):
 
     members = []
     async for m in app.get_chat_members(chat_id):
-        members.append(m)
+        if not m.user.is_bot and not m.user.is_deleted:
+            members.append(m)
 
     total = len(members)
     active_chats[chat_id] = "all"
@@ -673,7 +660,7 @@ async def tag_all_admins(client, message):
         pass
 
 # ============================================================
-# --- 6. SLOW TAG COMMAND (/stag) ---
+# --- 6. SLOW TAG (/stag) ---
 # ============================================================
 @app.on_message(filters.command(["stag", "slowtag", "humantag"]) & filters.group)
 async def slow_tag(client, message):
@@ -685,20 +672,17 @@ async def slow_tag(client, message):
         return await message.reply("⚠️ Tagging already running. Use /stoptag to stop.")
 
     replied = message.reply_to_message
-
     members = []
     async for m in app.get_chat_members(chat_id):
         members.append(m)
 
     total = len(members)
     active_chats[chat_id] = "stag"
-
     text = None
     if len(message.command) > 1:
         text = clean_text(message.text.split(None, 1)[1])
 
     await message.reply(f"🐢 Human-style tagging shuru... {total} members")
-
     tagged = await process_members_single(chat_id, members, text=text, replied=replied)
     active_chats.pop(chat_id, None)
 
@@ -708,7 +692,7 @@ async def slow_tag(client, message):
         pass
 
 # ============================================================
-# --- 7. GREETING TAGS (GM / GA / GN) ---
+# --- 7. GREETING TAGS ---
 # ============================================================
 @app.on_message(filters.command("gmtag") & filters.group)
 async def gmtag(client, message):
@@ -756,82 +740,7 @@ async def stop_all(client, message):
         await message.reply("❌ Koi bhi tagging nahi chal rahi abhi!")
 
 # ============================================================
-# --- 9. COUPLE COMMAND ---
-# ============================================================
-@app.on_message(filters.command("couple") & filters.group)
-async def couple_cmd(client, message):
-    chat_id = str(message.chat.id)
-    today   = datetime.now().strftime("%Y-%m-%d")
-    data    = await load_data_safe()
-
-    if chat_id in data["daily_couples"] and data["daily_couples"][chat_id].get("date") == today:
-        saved = data["daily_couples"][chat_id]
-        couple_msg = (
-            "╔═══════════════════════════╗\n"
-            "║      💝 TODAY'S COUPLE 💝     ║\n"
-            "╚═══════════════════════════╝\n\n"
-            f"👫 **{saved['couple1_name']}** ❤️ **{saved['couple2_name']}**\n\n"
-            f"💖 Compatibility: **{saved['compatibility']}%**\n"
-            f"🎀 Status: {get_couple_status(saved['compatibility'])}\n"
-            f"✨ Matched on: {today}\n\n"
-            "💕 *Ye aaj ki special jodi hai!* 🌸"
-        )
-        return await message.reply(couple_msg)
-
-    progress = await message.reply("💕 Aaj ki jodi dhundh rahi hoon... 🎀")
-    members  = []
-    async for m in client.get_chat_members(message.chat.id):
-        if not m.user.is_bot and not m.user.is_deleted:
-            members.append(m.user)
-
-    if len(members) < 2:
-        return await progress.edit_text("❌ Kam se kam 2 active members chahiye! 🎀")
-
-    c1, c2        = random.sample(members, 2)
-    compatibility = random.randint(60, 100)
-
-    data["daily_couples"][chat_id] = {
-        "date":          today,
-        "couple1_id":    c1.id,
-        "couple1_name":  c1.first_name,
-        "couple2_id":    c2.id,
-        "couple2_name":  c2.first_name,
-        "compatibility": compatibility,
-    }
-    await save_data_safe(data)
-
-    couple_msg = (
-        "╔══════════════════════╗\n"
-        "║    💝 TODAY'S COUPLE 💝  \n"
-        "╚══════════════════════╝\n\n"
-        f"👫 {c1.mention} ❤️ {c2.mention}\n\n"
-        f"💖 Compatibility: **{compatibility}%**\n"
-        f"🎀 Status: {get_couple_status(compatibility)}\n"
-        f"✨ Matched on: {today}\n\n"
-        f"💕 *{get_couple_message(compatibility)}* 🌸"
-    )
-    await progress.edit_text(couple_msg)
-
-def get_couple_status(compatibility):
-    if compatibility >= 90: return "Perfect Match! 💯"
-    elif compatibility >= 80: return "Soulmates! 💕"
-    elif compatibility >= 70: return "Great Chemistry! ✨"
-    else: return "Good Vibes! 🌸"
-
-def get_couple_message(compatibility):
-    msgs = {
-        90: ["Ye jodi toh jannat mein bani hai! 💫", "Made for each other! 👼", "Isse perfect aur kya! 🎯"],
-        80: ["Chemistry toh dekho inki! 🔥", "Pyaar ho jayega pakka! 💘", "Couple goals! 🎀"],
-        70: ["Sweet couple alert! 🍭", "Cute jodi ban gayi! 🌸", "Love is in the air! 💕"],
-        60: ["Ek baar try toh karo! 💭", "Kuch special ho sakta hai! ✨", "Pyaar ka chance hai! 💌"],
-    }
-    for threshold in [90, 80, 70, 60]:
-        if compatibility >= threshold:
-            return random.choice(msgs[threshold])
-    return "Dekho kya hota hai! 🎲"
-
-# ============================================================
-# --- 10. ADMIN / OWNER COMMANDS ---
+# --- 9. ADMIN / OWNER COMMANDS ---
 # ============================================================
 @app.on_message(filters.command("stats") & filters.user(OWNER_ID))
 async def stats_cmd(client, message):
@@ -841,7 +750,6 @@ async def stats_cmd(client, message):
         f"🏘️ Groups: `{len(data['groups'])}`\n"
         f"👤 Users: `{len(data['users'])}`\n"
         f"🌙 AFK Users: `{len(data['afk_users'])}`\n"
-        f"💕 Daily Couples: `{len(data['daily_couples'])}`\n"
         f"🏷️ Active Tagging Chats: `{len(active_chats)}`"
     )
 
@@ -866,19 +774,13 @@ async def broadcast_cmd(client, message):
 @app.on_message(filters.command("restart") & filters.user(OWNER_ID))
 async def restart_cmd(client, message):
     active_chats.clear()
-    msg = await message.reply(
-        "🔄 **Restarting QTTAGbot...**\n\n"
-        "⏳ Ek second ruko... 🎀"
-    )
+    msg = await message.reply("🔄 **Restarting QTTAGbot...**\n\n⏳ Ek second ruko... 🎀")
     await asyncio.sleep(1)
-    await msg.edit_text(
-        "✅ **Bot Restart Ho Raha Hai!**\n\n"
-        "🌸 Thodi der mein wapas aa jaayega!"
-    )
+    await msg.edit_text("✅ **Bot Restart Ho Raha Hai!**\n\n🌸 Thodi der mein wapas aa jaayega!")
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
 # ============================================================
-# --- 11. CHATBOT (lowest priority) ---
+# --- 10. CHATBOT ---
 # ============================================================
 @app.on_message(filters.sticker & filters.group, group=2)
 async def sticker_response_handler(client, message):
@@ -889,8 +791,9 @@ async def general_chat_handler(client, message):
     if message.text and message.text.startswith("/"):
         return
     await handle_chat(client, message, active_chats)
+
 # ============================================================
 # --- BOOT ---
 # ============================================================
-print("🌸 QTTAGbot LOADED! Duplicate fixed, /stag added. 🎀")
+print("🌸 QTTAGbot LOADED! Couple removed, flood wait fixed. 🎀")
 app.run()
