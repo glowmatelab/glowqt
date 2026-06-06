@@ -18,6 +18,14 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMembersFilter
 from pyrogram.errors import FloodWait
 
+
+async def bot_api(method, **kwargs):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
+            json=kwargs
+        )
+        return resp.json()
 # ============================================================
 # --- FLASK ---
 # ============================================================
