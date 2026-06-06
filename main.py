@@ -348,7 +348,7 @@ async def bot_api(method, **kwargs):
 async def start(client, message):
     from messages import START_TEXT
     IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
-
+    me = await client.get_me()  # pehle fetch karo
     await bot_api(
         "sendPhoto",
         chat_id=message.chat.id,
@@ -357,7 +357,7 @@ async def start(client, message):
         parse_mode="HTML",
         reply_markup={
             "inline_keyboard": [[
-                {"text": "➕ ADD TO YOUR GROUP ➕", "url": f"https://t.me/{(await client.get_me()).username}?startgroup=true"}
+                {"text": "➕ ADD TO YOUR GROUP ➕", "url": f"https://t.me/{me.username}?startgroup=true"}
             ]]
         }
     )
@@ -365,7 +365,7 @@ async def start(client, message):
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
     from messages import HELP_TEXT
-
+    me = await client.get_me()  # pehle fetch karo
     await bot_api(
         "sendMessage",
         chat_id=message.chat.id,
@@ -374,7 +374,7 @@ async def help_cmd(client, message):
         reply_markup={
             "inline_keyboard": [
                 [
-                    {"text": "➕ ADD TO GROUP", "url": f"https://t.me/{(await client.get_me()).username}?startgroup=true"},
+                    {"text": "➕ ADD TO GROUP", "url": f"https://t.me/{me.username}?startgroup=true"},
                     {"text": "💬 SUPPORT", "url": "https://t.me/galaxysupportteam"}
                 ],
                 [
