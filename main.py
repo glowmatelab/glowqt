@@ -4,7 +4,6 @@ import os
 import random
 import re
 import sys
-import httpx
 from datetime import datetime
 from threading import Thread
 from flask import Flask
@@ -50,21 +49,6 @@ app = Client(
     sleep_threshold=60,
     max_concurrent_transmissions=2,
 )
-
-# ============================================================
-# --- BOT API HELPER ---
-# ============================================================
-async def bot_api(method, **kwargs):
-    token = os.environ.get("BOT_TOKEN")
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"https://api.telegram.org/bot{token}/{method}",
-            json=kwargs
-        )
-        result = resp.json()
-        if not result.get("ok"):
-            print(f"[bot_api error] {method}: {result}")
-        return result
 
 # ============================================================
 # --- UNIFIED ACTIVE CHATS ---
@@ -144,14 +128,14 @@ async def safe_send(chat_id, text, replied=None, retries=3):
                 await replied.reply_text(
                     text,
                     disable_web_page_preview=True,
-                    parse_mode=enums.ParseMode.MARKDOWN,
+                    parse_mode=ParseMode.MARKDOWN,
                 )
             else:
                 await app.send_message(
                     chat_id,
                     text,
                     disable_web_page_preview=True,
-                    parse_mode=enums.ParseMode.MARKDOWN,
+                    parse_mode=ParseMode.MARKDOWN,
                 )
             return True
 
@@ -160,7 +144,7 @@ async def safe_send(chat_id, text, replied=None, retries=3):
             print(f"[FloodWait] {wait}s — chat {chat_id}")
             await asyncio.sleep(wait)
 
-        except (OSError, ConnectionResetError, BrokenPipeError) as e:
+        except (PyroConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
             wait = 5 * (attempt + 1)
             print(f"[Network Error] Attempt {attempt+1}/{retries}: {e} — waiting {wait}s")
             await asyncio.sleep(wait)
@@ -300,7 +284,7 @@ async def tag_users_greeting(chat_id, messages, tag_type):
         except FloodWait as e:
             await asyncio.sleep(e.value + 2)
 
-        except (OSError, ConnectionResetError, BrokenPipeError) as e:
+        except (PyroConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
             print(f"[Greeting network error]: {e}")
             await asyncio.sleep(10)
 
@@ -354,42 +338,24 @@ async def track_everything(client, message):
 async def start(client, message):
     from messages import START_TEXT
     IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
-    me = await client.get_me()
-    await bot_api(
-        "sendPhoto",
-        chat_id=message.chat.id,
-        photo=IMAGE_URL,
-        caption=START_TEXT,
-        parse_mode="HTML",
-        reply_markup={
-            "inline_keyboard": [[
-                {"text": "➕ ADD TO YOUR GROUP ➕", "url": f"https://t.me/{me.username}?startgroup=true"}
-            ]]
-        }
-    )
+    
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true")]
+    ])
+    await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
 
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
     from messages import HELP_TEXT
-    me = await client.get_me()
-    await bot_api(
-        "sendMessage",
-        chat_id=message.chat.id,
-        text=HELP_TEXT,
-        parse_mode="HTML",
-        reply_markup={
-            "inline_keyboard": [
-                [
-                    {"text": "➕ ADD TO GROUP", "url": f"https://t.me/{me.username}?startgroup=true"},
-                    {"text": "💬 SUPPORT", "url": "https://t.me/galaxysupportteam"}
-                ],
-                [
-                    {"text": "📢 BOT CHANNEL", "url": "https://t.me/galaxy_bots_update"}
-                ]
-            ]
-        }
-    )
-
+    
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true"),
+            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam")
+        ],
+        [InlineKeyboardButton("📢 BOT CHANNEL", url="https://t.me/galaxy_bots_update")]
+    ])
+    await message.reply(HELP_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
 # ============================================================
 # --- 3. AFK SYSTEM ---
 # ============================================================
@@ -719,7 +685,6 @@ async def general_chat_handler(client, message):
     if message.text and message.text.startswith("/"):
         return
     await handle_chat(client, message, active_chats)
-
 # ============================================================
 # --- BOOT ---
 # ============================================================
