@@ -100,7 +100,6 @@ async def handle_sticker(client, message, active_chats):
         return
 
     try:
-        # Pyrogram me sticker set nikalne ke liye raw API methods ka use kiya hai
         from pyrogram.raw.functions.messages import GetStickerSet
         from pyrogram.raw.types import InputStickerSetShortName
 
@@ -110,12 +109,12 @@ async def handle_sticker(client, message, active_chats):
                 hash=0
             )
         )
-        
+
         all_stickers = raw_sticker_set.documents
         if not all_stickers:
             return
 
-        # Usi pack me se koi dusra sticker select karega (raw objects compare honge)
+        # FIX 1: file_unique_id se compare karo (dono string)
         current_id = message.sticker.file_unique_id
         choices = [s for s in all_stickers if str(s.id) != current_id]
         if not choices:
@@ -125,13 +124,12 @@ async def handle_sticker(client, message, active_chats):
 
         await asyncio.sleep(random.uniform(0.5, 1.5))
         set_cooldown(user_id)
-        
-        # Raw document ko send karne ke liye directly object pass kar sakte hain
+
+        # FIX 2: str(id) pass karo, raw object nahi
         await message.reply_sticker(str(random_sticker.id))
-        
+
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
-
 
 async def handle_chat(client, message, active_chats):
     if not message.from_user:
