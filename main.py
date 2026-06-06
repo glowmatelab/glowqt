@@ -107,7 +107,10 @@ async def bot_api(method, **kwargs):
             f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
             json=kwargs
         )
-        return resp.json()
+        result = resp.json()
+        if not result.get("ok"):
+            print(f"[bot_api error] {method}: {result}")
+        return result
 # ============================================================
 # --- HELPER FUNCTIONS ---
 # ============================================================
