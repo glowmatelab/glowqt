@@ -336,14 +336,6 @@ async def track_everything(client, message):
 # ============================================================
 # --- 2. BASIC COMMANDS ---
 # ============================================================
-
-async def bot_api(method, **kwargs):
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
-            json=kwargs
-        )
-        return resp.json()
 @app.on_message(filters.command("start"))
 async def start(client, message):
     from messages import START_TEXT
