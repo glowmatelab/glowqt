@@ -110,6 +110,10 @@ async def handle_sticker(client, message, active_chats):
     if is_on_cooldown(user_id):
         return
 
+    # ✅ 40% chance reply, 60% ignore
+    if random.random() > 0.40:
+        return
+
     try:
         from pyrogram.raw.functions.messages import GetStickerSet
         from pyrogram.raw.types import InputStickerSetShortName
@@ -129,7 +133,6 @@ async def handle_sticker(client, message, active_chats):
         if not all_stickers:
             return
 
-        # Current sticker exclude karo
         choices = [s for s in all_stickers
                    if s.id != message.sticker.file_id]
         if not choices:
@@ -140,7 +143,6 @@ async def handle_sticker(client, message, active_chats):
         await asyncio.sleep(random.uniform(0.5, 1.5))
         set_cooldown(user_id)
 
-        # Raw document se file_id banana
         file_id = FileId(
             file_type=FileType.STICKER,
             dc_id=random_doc.dc_id,
