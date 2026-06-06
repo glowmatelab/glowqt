@@ -257,6 +257,12 @@ async def handle_chat(client, message, active_chats):
     except Exception as e:
         print(f"[Chatbot reply error]: {e}")
 
+@app.on_message(filters.group & filters.new_chat_members)
+async def simple_welcome(client, message):
+    for member in message.new_chat_members:
+        user_mention = f"<a href='tg://user?id={member.id}'>{member.first_name}</a>"
+        await message.reply_text(f"Welcome ji {user_mention} ", parse_mode=enums.ParseMode.HTML)
+
 
 async def global_activity_booster(client, registered_chats: list, active_chats: dict, interval_minutes: int = 5):
     while True:
