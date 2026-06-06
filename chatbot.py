@@ -19,6 +19,11 @@ MSG_TRIGGER_COUNT = 10
 CLEANUP_INTERVAL = 1800
 REPLY_CHANCE = 0.30
 
+# File, Audio, aur GIF ke liye custom random phrases
+FILE_PHRASES = ["wah kya file hai", "mast cheez bheji hai bhai", "sahi hai, save kar leta hu", "ye file toh kaam ki lag rahi hai"]
+AUDIO_PHRASES = ["kya mast audio he", "waah kya awaaz hai", "bhai maza aa gaya sunkar", "suno sab, kya mast audio hai"]
+GIF_PHRASES = ["kya mast gif hai", "haha, sahi gif dhundha hai", "ye gif badhiya tha", "mast chal raha hai ye toh"]
+
 user_last_reply = {}
 group_msg_counter = {}
 group_last_activity = {}
@@ -100,6 +105,7 @@ async def handle_sticker(client, message, active_chats):
         if not all_stickers:
             return
 
+        # Usi pack me se koi dusra sticker select karega
         choices = [s for s in all_stickers if s.file_id != message.sticker.file_id]
         if not choices:
             choices = all_stickers
@@ -112,7 +118,11 @@ async def handle_sticker(client, message, active_chats):
 
 
 async def handle_chat(client, message, active_chats):
-    if not message.from_user or not message.text or message.text.startswith("/"):
+    if not message.from_user:
+        return
+
+    # Agar normal commands (/start etc) hain toh ignore karein
+    if message.text and message.text.startswith("/"):
         return
 
     try:
@@ -126,7 +136,6 @@ async def handle_chat(client, message, active_chats):
 
     chat_id = message.chat.id
     user_id = message.from_user.id
-    text = message.text.strip()
 
     if chat_id in active_chats:
         return
@@ -135,6 +144,9 @@ async def handle_chat(client, message, active_chats):
     now = datetime.now().timestamp()
     group_last_activity[chat_id] = now
 
+    # --- NAYA MEDIA HANDLING CODE (File, Audio, GIF) ---
+    is_media = message.document or message.audio or message.voice or message.animation
+    
     is_reply_to_bot = (
         message.reply_to_message and
         message.reply_to_message.from_user and
@@ -142,7 +154,9 @@ async def handle_chat(client, message, active_chats):
         message.reply_to_message.from_user.id == bot_id
     )
 
-    triggered = is_reply_to_bot or should_respond(text, bot_username)
+    # Text triggers check tabhi chalega jab message me text ho
+    text = message.text.strip() if message.text else ""
+    triggered = is_reply_to_bot or (text and should_respond(text, bot_username)) or is_media
 
     if not triggered:
         group_msg_counter[chat_id] = group_msg_counter.get(chat_id, 0) + 1
@@ -156,6 +170,30 @@ async def handle_chat(client, message, active_chats):
         return
     set_cooldown(user_id)
 
+    # 1. Media Type Response Select Karein
+    media_response = None
+    if message.document:
+        media_response = random.choice(FILE_PHRASES)
+    elif message.audio or message.voice:
+        media_response = random.choice(AUDIO_PHRASES)
+    elif message.animation:  # Animation matlab Telegram me GIF hota hai
+        media_response = random.choice(GIF_PHRASES)
+
+    if media_response:
+        try:
+            await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
+            await asyncio.sleep(random.uniform(0.8, 1.8))
+            await message.reply(media_response)
+        except Exception as e:
+            print(f"[Media reply error]: {e}")
+        return
+    # --- MEDIA HANDLING END ---
+
+    # Agar text nahi hai aur media bhi handle nahi hua (jaise photo wagerah), toh aage nahi badhna hai
+    if not text:
+        return
+
+    # 2. Emoji Only Check
     if is_emoji_only(text):
         try:
             await client.send_chat_action(chat_id, enums.ChatAction.TYPING)
@@ -169,6 +207,7 @@ async def handle_chat(client, message, active_chats):
             print(f"[Emoji reply error]: {e}")
         return
 
+    # 3. Normal Text Response
     response = find_response(text) or random.choice(FALLBACK)
 
     name = message.from_user.first_name or "yaar"
