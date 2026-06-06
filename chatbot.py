@@ -116,7 +116,8 @@ async def handle_sticker(client, message, active_chats):
             return
 
         # Usi pack me se koi dusra sticker select karega (raw objects compare honge)
-        choices = [s for s in all_stickers if s.id != message.sticker.file_id]
+        current_id = message.sticker.file_unique_id
+        choices = [s for s in all_stickers if str(s.id) != current_id]
         if not choices:
             choices = all_stickers
 
@@ -126,7 +127,7 @@ async def handle_sticker(client, message, active_chats):
         set_cooldown(user_id)
         
         # Raw document ko send karne ke liye directly object pass kar sakte hain
-        await message.reply_sticker(random_sticker)
+        await message.reply_sticker(str(random_sticker.id))
         
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
