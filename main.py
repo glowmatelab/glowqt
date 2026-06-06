@@ -342,7 +342,8 @@ async def start(client, message):
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true")]
     ])
-    await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
+    # enums.ParseMode.HTML ki jagah raw string "html" use kiya hai
+    await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode="html")
 
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
@@ -355,8 +356,8 @@ async def help_cmd(client, message):
         ],
         [InlineKeyboardButton("📢 BOT CHANNEL", url="https://t.me/galaxy_bots_update")]
     ])
-    await message.reply(HELP_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
-
+    # Enums bypass karne ke liye "html" raw string
+    await message.reply(HELP_TEXT, reply_markup=buttons, parse_mode="html")
 # ============================================================
 # --- 3. AFK SYSTEM ---
 # ============================================================
