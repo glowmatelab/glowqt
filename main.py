@@ -667,7 +667,7 @@ async def restart_cmd(client, message):
 # ============================================================
 @app.on_message(filters.group & filters.new_chat_members)
 async def welcome_response_handler(client, message):
-    await handle_welcome(client, message)
+    await simple_welcome(client, message)
 
 @app.on_message(filters.sticker & filters.group, group=2)
 async def sticker_response_handler(client, message):
