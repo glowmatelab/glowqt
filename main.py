@@ -334,28 +334,55 @@ async def track_everything(client, message):
 # ============================================================
 # --- 2. BASIC COMMANDS ---
 # ============================================================
+import httpx
+
+async def bot_api(method, **kwargs):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
+            json=kwargs
+        )
+        return resp.json()
+
 @app.on_message(filters.command("start"))
 async def start(client, message):
     from messages import START_TEXT
     IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
-    
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true")]
-    ])
-    await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
+
+    await bot_api(
+        "sendPhoto",
+        chat_id=message.chat.id,
+        photo=IMAGE_URL,
+        caption=START_TEXT,
+        parse_mode="HTML",
+        reply_markup={
+            "inline_keyboard": [[
+                {"text": "➕ ADD TO YOUR GROUP ➕", "url": f"https://t.me/{(await client.get_me()).username}?startgroup=true"}
+            ]]
+        }
+    )
 
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
     from messages import HELP_TEXT
-    
-    buttons = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true"),
-            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam")
-        ],
-        [InlineKeyboardButton("📢 BOT CHANNEL", url="https://t.me/galaxy_bots_update")]
-    ])
-    await message.reply(HELP_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
+
+    await bot_api(
+        "sendMessage",
+        chat_id=message.chat.id,
+        text=HELP_TEXT,
+        parse_mode="HTML",
+        reply_markup={
+            "inline_keyboard": [
+                [
+                    {"text": "➕ ADD TO GROUP", "url": f"https://t.me/{(await client.get_me()).username}?startgroup=true"},
+                    {"text": "💬 SUPPORT", "url": "https://t.me/galaxysupportteam"}
+                ],
+                [
+                    {"text": "📢 BOT CHANNEL", "url": "https://t.me/galaxy_bots_update"}
+                ]
+            ]
+        }
+    )
 # ============================================================
 # --- 3. AFK SYSTEM ---
 # ============================================================
