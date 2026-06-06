@@ -336,18 +336,25 @@ async def track_everything(client, message):
 @app.on_message(filters.command("start"))
 async def start(client, message):
     from messages import START_TEXT
-    buttons = InlineKeyboardMarkup([[
-        InlineKeyboardButton(
-            "➕ ADD TO YOUR GROUP ➕",
-            url=f"https://t.me/{app.me.username}?startgroup=true"
-        )
-    ]])
-    await message.reply(START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.MARKDOWN)
+    IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
+    
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true")]
+    ])
+    await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.MARKDOWN)
 
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
     from messages import HELP_TEXT
-    await message.reply(HELP_TEXT, parse_mode=enums.ParseMode.MARKDOWN)
+    
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true"),
+            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam")
+        ],
+        [InlineKeyboardButton("📢 BOT CHANNEL", url="https://t.me/galaxy_bots_update")]
+    ])
+    await message.reply(HELP_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.MARKDOWN)
 
 # ============================================================
 # --- 3. AFK SYSTEM ---
