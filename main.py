@@ -18,14 +18,6 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMembersFilter
 from pyrogram.errors import FloodWait
 
-
-async def bot_api(method, **kwargs):
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
-            json=kwargs
-        )
-        return resp.json()
 # ============================================================
 # --- FLASK ---
 # ============================================================
@@ -109,6 +101,13 @@ async def save_data_safe(data):
     async with data_lock:
         save_data(data)
 
+async def bot_api(method, **kwargs):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
+            json=kwargs
+        )
+        return resp.json()
 # ============================================================
 # --- HELPER FUNCTIONS ---
 # ============================================================
@@ -383,7 +382,6 @@ async def help_cmd(client, message):
             ]
         }
     )
-
 # ============================================================
 # --- 3. AFK SYSTEM ---
 # ============================================================
