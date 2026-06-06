@@ -4,10 +4,12 @@ import os
 import random
 import re
 import sys
+import httpx
 from datetime import datetime
 from threading import Thread
 from flask import Flask
 # Custom Modules
+
 from chatbot import handle_chat, handle_sticker, simple_welcome
 from messages import GM_MESSAGES, GA_MESSAGES, GN_MESSAGES, EMOJI
 # Pyrogram Main Imports
@@ -334,7 +336,6 @@ async def track_everything(client, message):
 # ============================================================
 # --- 2. BASIC COMMANDS ---
 # ============================================================
-import httpx
 
 async def bot_api(method, **kwargs):
     async with httpx.AsyncClient() as client:
@@ -343,12 +344,11 @@ async def bot_api(method, **kwargs):
             json=kwargs
         )
         return resp.json()
-
 @app.on_message(filters.command("start"))
 async def start(client, message):
     from messages import START_TEXT
     IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
-    me = await client.get_me()  # pehle fetch karo
+    me = await client.get_me()
     await bot_api(
         "sendPhoto",
         chat_id=message.chat.id,
@@ -365,7 +365,7 @@ async def start(client, message):
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
     from messages import HELP_TEXT
-    me = await client.get_me()  # pehle fetch karo
+    me = await client.get_me()
     await bot_api(
         "sendMessage",
         chat_id=message.chat.id,
@@ -383,6 +383,7 @@ async def help_cmd(client, message):
             ]
         }
     )
+
 # ============================================================
 # --- 3. AFK SYSTEM ---
 # ============================================================
