@@ -113,10 +113,12 @@ async def handle_sticker(client, message, active_chats):
     try:
         from pyrogram.raw.functions.messages import GetStickerSet
         from pyrogram.raw.types import InputStickerSetShortName
+        from pyrogram.file_id import FileId, FileType, PHOTO_TYPES
+        import base64
 
         raw_sticker_set = await client.invoke(
             GetStickerSet(
-                stickerset=InputStickerSetShortName(  # ✅ stickers_set → stickerset
+                stickerset=InputStickerSetShortName(
                     short_name=message.sticker.set_name
                 ),
                 hash=0
@@ -127,17 +129,27 @@ async def handle_sticker(client, message, active_chats):
         if not all_stickers:
             return
 
-        current_id = message.sticker.file_unique_id
-        choices = [s for s in all_stickers if str(s.id) != current_id]
+        # Current sticker exclude karo
+        choices = [s for s in all_stickers
+                   if s.id != message.sticker.file_id]
         if not choices:
             choices = all_stickers
 
-        random_sticker = random.choice(choices)
+        random_doc = random.choice(choices)
 
         await asyncio.sleep(random.uniform(0.5, 1.5))
         set_cooldown(user_id)
 
-        await message.reply_sticker(str(random_sticker.id))
+        # Raw document se file_id banana
+        file_id = FileId(
+            file_type=FileType.STICKER,
+            dc_id=random_doc.dc_id,
+            media_id=random_doc.id,
+            access_hash=random_doc.access_hash,
+            file_reference=random_doc.file_reference,
+        ).encode()
+
+        await message.reply_sticker(file_id)
 
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
