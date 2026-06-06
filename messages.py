@@ -1,19 +1,17 @@
 # messages.py
 
 START_TEXT = (
-    "<blockquote>"
-    "<b>✨ QTTAGbot v2.0 • Premium Assistant</b>\n"
+    "<blockquote><b>✨ QTTAGbot v2.0 • Premium Assistant</b>\n"
     "━━━━━━━━━━━━━━━━━━━━━━\n\n"
     "👋 <b>Welcome User!</b>\n"
     "Main aapki high-performance aur elegant group management assistant aur ek <b>Smart Chatbot</b> hoon.\n\n"
-    "⚡ <b>Key Capabilities:</b>\n"
+    "<b>⚡ Key Capabilities:</b>\n"
     "• <b>AI Chatbot:</b> Group engagement aur automated replies.\n"
     "• <b>Fast Mentions:</b> High-speed emoji aur text tagging modes.\n"
     "• <b>Active Radar:</b> Online aur active members ko target karne ke liye.\n"
     "• <b>Admin Tools:</b> Group operations ke liye strong controls.\n"
     "• <b>Social Suite:</b> Advanced AFK system aur dynamic greetings.\n\n"
-    "<i>Niche diye gaye button se mujhe apne group mein add karein!</i>"
-    "</blockquote>"
+    "<i>Niche diye gaye button se mujhe apne group mein add karein!</i></blockquote>"
 )
 
 HELP_TEXT = (
