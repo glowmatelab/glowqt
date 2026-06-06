@@ -15,8 +15,7 @@ from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMembersFilter
 from pyrogram.errors import FloodWait
-import pyrogram
-print(f"========= PYROGRAM VERSION: {pyrogram.__version__} =========")
+
 # ============================================================
 # --- FLASK ---
 # ============================================================
