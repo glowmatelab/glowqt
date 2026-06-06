@@ -4,16 +4,17 @@ import os
 import random
 import re
 import sys
+from datetime import datetime
+from threading import Thread
+from flask import Flask
+# Custom Modules
 from chatbot import handle_chat, handle_sticker, simple_welcome
 from messages import GM_MESSAGES, GA_MESSAGES, GN_MESSAGES, EMOJI
+# Pyrogram Main Imports
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.enums import ChatMembersFilter, ParseMode
+from pyrogram.enums import ChatMembersFilter
 from pyrogram.errors import FloodWait
-from pyrogram.errors import RPCError as PyroConnectionError
-from datetime import datetime
-from flask import Flask
-from threading import Thread
 
 # ============================================================
 # --- FLASK ---
