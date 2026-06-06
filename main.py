@@ -4,7 +4,7 @@ import os
 import random
 import re
 import sys
-from chatbot import handle_chat, handle_sticker, handle_welcome
+from chatbot import handle_chat, handle_sticker, simple_welcome
 from messages import GM_MESSAGES, GA_MESSAGES, GN_MESSAGES, EMOJI
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
