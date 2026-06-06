@@ -116,7 +116,9 @@ async def handle_sticker(client, message, active_chats):
 
         raw_sticker_set = await client.invoke(
             GetStickerSet(
-                stickers_set=InputStickerSetShortName(short_name=message.sticker.set_name),
+                stickerset=InputStickerSetShortName(  # ✅ stickers_set → stickerset
+                    short_name=message.sticker.set_name
+                ),
                 hash=0
             )
         )
@@ -125,7 +127,6 @@ async def handle_sticker(client, message, active_chats):
         if not all_stickers:
             return
 
-        # ✅ Fix: file_unique_id se compare karo
         current_id = message.sticker.file_unique_id
         choices = [s for s in all_stickers if str(s.id) != current_id]
         if not choices:
@@ -136,12 +137,10 @@ async def handle_sticker(client, message, active_chats):
         await asyncio.sleep(random.uniform(0.5, 1.5))
         set_cooldown(user_id)
 
-        # ✅ Fix: str(id) pass karo
         await message.reply_sticker(str(random_sticker.id))
 
     except Exception as e:
         print(f"[Sticker handler error]: {e}")
-
 
 async def handle_chat(client, message, active_chats):
     if not message.from_user:
