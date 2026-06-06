@@ -258,24 +258,15 @@ async def handle_chat(client, message, active_chats):
         print(f"[Chatbot reply error]: {e}")
 
 async def simple_welcome(client, message):
-    # Bot ki id cache se nikalne ke liye
     bot_id, _ = await _get_bot_info(client)
-
     for member in message.new_chat_members:
-        # ✅ Agar bot khud group mein add hua hai
         if member.id == bot_id:
-            try:
-                await message.reply_text("Shukriya group me add karne ke liye! Main active hu. 😎")
-            except Exception as e:
-                print(f"[Bot Welcome Error]: {e}")
+            try: await client.send_message(message.chat.id, "Shukriya group me add karne ke liye! Main Apki group active rakhungi. by tagging people 😎")
+            except Exception as e: print(f"[Bot Welcome Error]: {e}")
             continue
-            
-        # ✅ Agar koi naya user group mein aaya hai
         user_mention = f"<a href='tg://user?id={member.id}'>{member.first_name}</a>"
-        try:
-            await message.reply_text(f"Welcome ji {user_mention} 🎉", parse_mode=enums.ParseMode.HTML)
-        except Exception as e:
-            print(f"[Welcome Error]: {e}")
+        try: await client.send_message(message.chat.id, f"Welcome ji {user_mention} 🎉", parse_mode=enums.ParseMode.HTML)
+        except Exception as e: print(f"[Welcome Error]: {e}")
 
 async def global_activity_booster(client, registered_chats: list, active_chats: dict, interval_minutes: int = 5):
     while True:
