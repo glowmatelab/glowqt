@@ -4,7 +4,7 @@ import os
 import random
 import re
 import sys
-from chatbot import handle_chat, handle_sticker
+from chatbot import handle_chat, handle_sticker, handle_welcome
 from messages import GM_MESSAGES, GA_MESSAGES, GN_MESSAGES, EMOJI
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -665,6 +665,10 @@ async def restart_cmd(client, message):
 # ============================================================
 # --- 10. CHATBOT ---
 # ============================================================
+@app.on_message(filters.group & filters.new_chat_members)
+async def welcome_response_handler(client, message):
+    await handle_welcome(client, message)
+
 @app.on_message(filters.sticker & filters.group, group=2)
 async def sticker_response_handler(client, message):
     await handle_sticker(client, message, active_chats)
@@ -674,7 +678,6 @@ async def general_chat_handler(client, message):
     if message.text and message.text.startswith("/"):
         return
     await handle_chat(client, message, active_chats)
-
 # ============================================================
 # --- BOOT ---
 # ============================================================
