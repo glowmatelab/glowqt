@@ -337,7 +337,6 @@ async def track_everything(client, message):
             save_data(data)
     except Exception as e:
         print(f"[track_everything error]: {e}")
-
 # ============================================================
 # --- 2. BASIC COMMANDS ---
 # ============================================================
@@ -346,8 +345,9 @@ async def start(client, message):
     from messages import START_TEXT
     IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
     
+    # style="primary" ki jagah enums.ButtonStyle.PRIMARY lagaya
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true", style="primary")]
+        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true", style=enums.ButtonStyle.PRIMARY)]
     ])
     await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
 
@@ -355,10 +355,11 @@ async def start(client, message):
 async def help_cmd(client, message):
     from messages import HELP_TEXT
     
+    # Enums use karke colors pass kiye
     buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true", style="primary"),
-            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam", style="success")
+            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true", style=enums.ButtonStyle.PRIMARY),
+            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam", style=enums.ButtonStyle.SUCCESS)
         ],
         [InlineKeyboardButton("📢 BOT CHANNEL", url="https://t.me/galaxy_bots_update")]
     ])
