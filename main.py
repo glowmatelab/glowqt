@@ -343,7 +343,7 @@ async def start(client, message):
     IMAGE_URL = "https://drive.google.com/uc?id=1kwp3goeP34VFNq89Ew0PAsVqG8MJEBsj"
     
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true")]
+        [InlineKeyboardButton("➕ ADD TO YOUR GROUP ➕", url=f"https://t.me/{client.me.username}?startgroup=true", style="primary")]
     ])
     await message.reply_photo(IMAGE_URL, caption=START_TEXT, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
 
@@ -353,8 +353,8 @@ async def help_cmd(client, message):
     
     buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true"),
-            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam")
+            InlineKeyboardButton("➕ ADD TO GROUP", url=f"https://t.me/{client.me.username}?startgroup=true", style="primary"),
+            InlineKeyboardButton("💬 SUPPORT", url="https://t.me/galaxysupportteam", style="success")
         ],
         [InlineKeyboardButton("📢 BOT CHANNEL", url="https://t.me/galaxy_bots_update")]
     ])
