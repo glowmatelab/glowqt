@@ -1,3 +1,7 @@
+import io
+import uuid
+from html import escape
+from eval_mod import setup_eval
 import asyncio
 import json
 import os
@@ -718,4 +722,6 @@ async def chatbot_toggle(client, message):
 # --- BOOT ---
 # ============================================================
 print("🌸 QTTAGbot LOADED! messages.py se import ho raha hai. 🎀")
+# Eval engine ko connect kar rahe hain saare zaroori variables ke saath
+setup_eval(app, OWNER_ID, active_chats, load_data, save_data)
 app.run()
