@@ -14,13 +14,14 @@ START_TEXT = (
     "━━━━━━━━━━━━━━━━━━━━━━\n"
     "👉 <i>Niche diye gaye button se mujhe apne group mein add karein!</i>"
 )
-
 HELP_TEXT = (
     "<b>📖 QTTAGbot • Command Reference</b>\n"
     "━━━━━━━━━━━━━━━━━━━━━━\n\n"
     "<blockquote expandable>"
     "🤖 <b>AI CHATBOT ENGINE</b>\n"
-    "• Bot group mein automatically stickers, media aur general chats handle karta hai.\n\n"
+    " ├ <code>/chatbot</code> ➔ Check chatbot status in group\n"
+    " ├ <code>/chatbot on</code> ➔ Enable chatbot (bot replies to messages)\n"
+    " └ <code>/chatbot off</code> ➔ Disable chatbot (mute the bot) 🤐\n\n"
     "📊 <b>TAGGING COMMANDS</b>\n"
     " ├ <code>/etag</code> ➔ Fast Emoji Tag (5 members/batch)\n"
     " ├ <code>/mtag</code> ➔ Standard Mention Tag\n"
@@ -40,7 +41,8 @@ HELP_TEXT = (
     " └ <code>/back</code> ➔ Return from AFK mode\n\n"
     "🛡️ <b>SYSTEM ADMINISTRATION</b>\n"
     " ├ <code>/stats</code> ➔ View bot growth and analytics\n"
-    " └ <code>/broadcast</code> ➔ Send alert to all groups\n\n"
+    " ├ <code>/broadcast</code> ➔ Send alert to all groups\n"
+    " └ <code>/eval [code]</code> ➔ Execute Python code directly (Owner Only) 💻\n\n"
     "⚠️ <b>Note:</b> Sabhi tagging operations ke liye Admin hona mandatory hai."
     "</blockquote>"
 )
