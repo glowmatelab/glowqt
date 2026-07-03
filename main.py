@@ -8,13 +8,16 @@ from datetime import datetime
 from threading import Thread
 from flask import Flask
 # Custom Modules
-from chatbot import handle_chat, handle_sticker, simple_welcome
+from chatbot import handle_chat, handle_sticker, simple_welcome, set_chatbot_enabled, is_chatbot_enabled
 from messages import GM_MESSAGES, GA_MESSAGES, GN_MESSAGES, EMOJI
 # Pyrogram Main Imports
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.enums import ChatMembersFilter
+from pyrogram.enums import ChatMembersFilter, ParseMode
 from pyrogram.errors import FloodWait
+# Note: Python's built-in ConnectionError already covers network drops
+# (it's the parent class of ConnectionResetError / BrokenPipeError),
+# so no extra pyrogram import is needed here.
 
 # ============================================================
 # --- FLASK ---
@@ -144,7 +147,7 @@ async def safe_send(chat_id, text, replied=None, retries=3):
             print(f"[FloodWait] {wait}s — chat {chat_id}")
             await asyncio.sleep(wait)
 
-        except (PyroConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
+        except (ConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
             wait = 5 * (attempt + 1)
             print(f"[Network Error] Attempt {attempt+1}/{retries}: {e} — waiting {wait}s")
             await asyncio.sleep(wait)
@@ -284,7 +287,7 @@ async def tag_users_greeting(chat_id, messages, tag_type):
         except FloodWait as e:
             await asyncio.sleep(e.value + 2)
 
-        except (PyroConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
+        except (ConnectionError, OSError, ConnectionResetError, BrokenPipeError) as e:
             print(f"[Greeting network error]: {e}")
             await asyncio.sleep(10)
 
@@ -685,6 +688,32 @@ async def general_chat_handler(client, message):
     if message.text and message.text.startswith("/"):
         return
     await handle_chat(client, message, active_chats)
+
+# ✅ NEW: per-chat chatbot on/off toggle (admins only)
+@app.on_message(filters.command("chatbot") & filters.group)
+async def chatbot_toggle(client, message):
+    chat_id = message.chat.id
+
+    if not await is_admin(chat_id, message.from_user.id):
+        return await message.reply("❌ Sirf admins isko on/off kar sakte hai! 👑")
+
+    if len(message.command) < 2:
+        status = "✅ ON" if is_chatbot_enabled(chat_id) else "🚫 OFF"
+        return await message.reply(
+            f"🤖 Chatbot abhi: **{status}**\n\n"
+            f"Use: `/chatbot on` ya `/chatbot off`"
+        )
+
+    arg = message.command[1].lower()
+    if arg == "on":
+        set_chatbot_enabled(chat_id, True)
+        await message.reply("✅ Chatbot is-group me **ON** kar diya! Ab bot baat karega. 🎀")
+    elif arg == "off":
+        set_chatbot_enabled(chat_id, False)
+        await message.reply("🚫 Chatbot is-group me **OFF** kar diya! Ab bot chup rahega. 🤐")
+    else:
+        await message.reply("❌ Sirf `/chatbot on` ya `/chatbot off` use karo.")
+
 # ============================================================
 # --- BOOT ---
 # ============================================================
