@@ -17,7 +17,6 @@ START_TEXT = (
     "━━━━━━━━━━━━━━━━━━━━━━\n"
     "👉 <i>Niche diye gaye button se mujhe apne group mein add karein!</i>"
 )
-
 HELP_TEXT = (
     "<b>📖 QTTAGbot • Command Reference</b>\n"
     "━━━━━━━━━━━━━━━━━━━━━━\n\n"
