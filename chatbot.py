@@ -111,7 +111,7 @@ async def handle_sticker(client, message, active_chats):
         return
 
     # ✅ 40% chance reply, 60% ignore
-    if random.random() > 0.10:
+    if random.random() > 0.99:
         return
 
     try:
