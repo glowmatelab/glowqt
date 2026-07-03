@@ -21,6 +21,7 @@ START_TEXT = (
 HELP_TEXT = (
     "<b>📖 QTTAGbot • Command Reference</b>\n"
     "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "<blockquote expandable>"
     "🤖 <b>AI CHATBOT ENGINE</b>\n"
     "• Bot group mein automatically stickers, media aur general chats handle karta hai.\n\n"
     "📊 <b>TAGGING COMMANDS</b>\n"
@@ -43,10 +44,9 @@ HELP_TEXT = (
     "🛡️ <b>SYSTEM ADMINISTRATION</b>\n"
     " ├ <code>/stats</code> ➔ View bot growth and analytics\n"
     " └ <code>/broadcast</code> ➔ Send alert to all groups\n\n"
-    "━━━━━━━━━━━━━━━━━━━━━━\n"
     "⚠️ <b>Note:</b> Sabhi tagging operations ke liye Admin hona mandatory hai."
+    "</blockquote>"
 )
-
 GM_MESSAGES = [
     "🌞 <b>Gᴏᴏᴅ Mᴏʀɴɪɴɢ</b> 🌼\n\n{mention}",
     "☕ <b>Rise and Shine!</b>\n\n{mention}",
